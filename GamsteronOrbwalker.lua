@@ -1,6 +1,6 @@
 _G.SDK =
 {
-    Version = '0.03 - Beta',
+    Version = '0.04 - Beta',
     Load = {},
     Draw = {},
     Tick = {},
@@ -1704,7 +1704,7 @@ function Buff:CreateBuffs
     for i = 0, unit.buffCount do
         local buff = unit:GetBuff(i)
         if buff and buff.count > 0 then
-            result[buff.name] =
+            result[buff.name:lower()] =
             {
                 Type = buff.type,
                 StartTime = buff.startTime,
@@ -1718,9 +1718,22 @@ function Buff:CreateBuffs
     return result
 end
 
+function Buff:GetBuffDuration
+    (unit, name)
+    
+    name = name:lower()
+    local id = unit.networkID
+    if self.CachedBuffs[id] == nil then self.CachedBuffs[id] = self:CreateBuffs(unit) end
+    if self.CachedBuffs[id][name] then
+        return self.CachedBuffs[id][name].Duration
+    end
+    return 0
+end
+
 function Buff:GetBuff
     (unit, name)
     
+    name = name:lower()
     local id = unit.networkID
     if self.CachedBuffs[id] == nil then self.CachedBuffs[id] = self:CreateBuffs(unit) end
     return self.CachedBuffs[id][name]
@@ -1733,7 +1746,7 @@ function Buff:HasBuffContainsName
     local id = unit.networkID
     if self.CachedBuffs[id] == nil then self.CachedBuffs[id] = self:CreateBuffs(unit) end
     for name, buff in pairs(self.CachedBuffs[id]) do
-        if name:lower():find(str) then
+        if name:find(str) then
             return true
         end
     end
@@ -1746,7 +1759,8 @@ function Buff:ContainsBuffs
     local id = unit.networkID
     if self.CachedBuffs[id] == nil then self.CachedBuffs[id] = self:CreateBuffs(unit) end
     for i = 1, #arr do
-        if self.CachedBuffs[id][arr[i]] then
+        local name = arr[i]:lower()
+        if self.CachedBuffs[id][name] then
             return true
         end
     end
@@ -1756,6 +1770,7 @@ end
 function Buff:HasBuff
     (unit, name)
     
+    name = name:lower()
     local id = unit.networkID
     if self.CachedBuffs[id] == nil then self.CachedBuffs[id] = self:CreateBuffs(unit) end
     if self.CachedBuffs[id][name] then
@@ -1780,6 +1795,7 @@ end
 function Buff:GetBuffCount
     (unit, name)
     
+    name = name:lower()
     local id = unit.networkID
     if self.CachedBuffs[id] == nil then self.CachedBuffs[id] = self:CreateBuffs(unit) end
     if self.CachedBuffs[id][name] then
@@ -3292,6 +3308,30 @@ function Math:IsBothFacing
         return true
     end
     return false
+end
+
+function Math:ProjectOn
+    (p, p1, p2)
+    
+    local isOnSegment, pointSegment, pointLine
+    local px, pz = p.x, (p.z or p.y)
+    local ax, az = p1.x, (p1.z or p1.y)
+    local bx, bz = p2.x, (p2.z or p2.y)
+    local bxax = bx - ax
+    local bzaz = bz - az
+    local t = ((px - ax) * bxax + (pz - az) * bzaz) / (bxax * bxax + bzaz * bzaz)
+    local pointLine = {x = ax + t * bxax, y = az + t * bzaz}
+    if t < 0 then
+        isOnSegment = false
+        pointSegment = p1
+    elseif t > 1 then
+        isOnSegment = false
+        pointSegment = p2
+    else
+        isOnSegment = true
+        pointSegment = pointLine
+    end
+    return isOnSegment, pointSegment, pointLine
 end
 
 Data =
