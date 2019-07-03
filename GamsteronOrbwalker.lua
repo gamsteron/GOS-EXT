@@ -4077,6 +4077,7 @@ Data =
         ["illaoi"] = {Slot = _W, Key = HK_W},
         ["jax"] = {Slot = _W, Key = HK_W},
         ["jayce"] = {Slot = _W, Key = HK_W, Name = "JayceHyperCharge"},
+        ["kayle"] = {Slot = _E, Key = HK_E},
         ["katarina"] = {Slot = _E, Key = HK_E, CanCancel = true, OnCast = true},
         ["kindred"] = {Slot = _Q, Key = HK_Q},
         ["leona"] = {Slot = _Q, Key = HK_Q},
