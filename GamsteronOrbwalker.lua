@@ -1,6 +1,6 @@
 _G.SDK =
 {
-    Version = '0.02 - Beta',
+    Version = '0.03 - Beta',
     Load = {},
     Draw = {},
     Tick = {},
@@ -2752,8 +2752,7 @@ function Health:OnTick()
                         self.ActiveAttacks[handle][endTimes[i]] = nil
                     end
                     self.ActiveAttacks[handle] = nil
-                end
-                if count > 1 then
+                elseif count > 1 then
                     local check = true
                     while check do
                         check = false
@@ -2762,7 +2761,7 @@ function Health:OnTick()
                             local t2 = endTimes[i + 1]
                             if t1 - t2 < animationT - 0.1 then
                                 self.ActiveAttacks[handle][t2] = nil
-                                table.remove(endTimes, i)
+                                table.remove(endTimes, i + 1)
                                 check = true
                                 break
                             end
