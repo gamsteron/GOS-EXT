@@ -1,6 +1,6 @@
 _G.SDK =
 {
-    Version = '0.01 - Beta',
+    Version = '0.02 - Beta',
     Load = {},
     Draw = {},
     Tick = {},
@@ -3497,6 +3497,7 @@ Data =
         end,
     },
     
+    --9.13.1
     HeroNames =
     {
         ['aatrox'] = true,
@@ -3587,6 +3588,7 @@ Data =
         ['pantheon'] = true,
         ['poppy'] = true,
         ['pyke'] = true,
+        ['qiyana'] = true,
         ['quinn'] = true,
         ['rakan'] = true,
         ['rammus'] = true,
@@ -3636,6 +3638,7 @@ Data =
         ['xinzhao'] = true,
         ['yasuo'] = true,
         ['yorick'] = true,
+        ['yuumi'] = true,
         ['zac'] = true,
         ['zed'] = true,
         ['ziggs'] = true,
@@ -3644,6 +3647,7 @@ Data =
         ['zyra'] = true,
     },
     
+    --9.13.1
     HeroPriorities =
     {
         ['aatrox'] = 3,
@@ -3734,6 +3738,7 @@ Data =
         ['pantheon'] = 3,
         ['poppy'] = 2,
         ['pyke'] = 4,
+        ['qiyana'] = 4,
         ['quinn'] = 5,
         ['rakan'] = 3,
         ['rammus'] = 1,
@@ -3783,6 +3788,7 @@ Data =
         ['xinzhao'] = 3,
         ['yasuo'] = 4,
         ['yorick'] = 2,
+        ['yuumi'] = 3,
         ['zac'] = 1,
         ['zed'] = 4,
         ['ziggs'] = 4,
@@ -3791,6 +3797,7 @@ Data =
         ['zyra'] = 2,
     },
     
+    -- 9.13.1
     HeroMelees =
     {
         ['aatrox'] = true,
@@ -3881,6 +3888,7 @@ Data =
         ['pantheon'] = true,
         ['poppy'] = true,
         ['pyke'] = true,
+        ['qiyana'] = true,
         ['quinn'] = false,
         ['rakan'] = true,
         ['rammus'] = true,
@@ -3930,6 +3938,7 @@ Data =
         ['xinzhao'] = true,
         ['yasuo'] = true,
         ['yorick'] = true,
+        ['yuumi'] = false,
         ['zac'] = true,
         ['zed'] = true,
         ['ziggs'] = false,
@@ -4101,7 +4110,7 @@ function Data:OnLoad()
                         if AttackResetActiveSpell then
                             self.AttackResetTimer = GetTickCount()
                             local startTime = GetTickCount() + 400
-                            table.insert(SDK.Actions, function()
+                            Action:Add(function()
                                 local activeSpell = myHero.activeSpell
                                 if activeSpell and activeSpell.valid and activeSpell.name == AttackResetSpellName then
                                     self.AttackResetTimer = GetTickCount()
@@ -4124,7 +4133,7 @@ function Data:OnLoad()
                             Orbwalker:SetMovement(false)
                             local setTime = GetTickCount() + 550
                             -- SET ATTACK
-                            table.insert(SDK.Actions, function()
+                            Action:Add(function()
                                 if GetTickCount() < setTime then
                                     return false
                                 end
@@ -4152,7 +4161,7 @@ function Data:OnLoad()
                                 X = 0
                             end
                             local riven_start = GetTickCount() + 450 + (isThree and 100 or 0) - LATENCY
-                            table.insert(SDK.Actions, function()
+                            Action:Add(function()
                                 if GetTickCount() < riven_start then
                                     if Cursor.Step == 0 then
                                         Cursor.MoveTimer = 0
