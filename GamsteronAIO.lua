@@ -1,4 +1,6 @@
--- 0.01
+--0.02
+
+local myHero, os, math, Game, Vector, Control, Draw, table, pairs, GetTickCount = myHero, os, math, Game, Vector, Control, Draw, table, pairs, GetTickCount
 
 local SupportedChampions, Menu, AIO
 local SDKColor, SDKMenu, SDKAction, SDKObject, SDKTarget, SDKOrbwalker, SDKItem
@@ -15,6 +17,10 @@ local ORBWALKER_MODE_LANECLEAR = 2
 local ORBWALKER_MODE_JUNGLECLEAR = 3
 local ORBWALKER_MODE_LASTHIT = 4
 local ORBWALKER_MODE_FLEE = 5
+
+local HITCHANCE_NORMAL = 2
+local HITCHANCE_HIGH = 3
+local HITCHANCE_IMMOBILE = 4
 
 local TEAM_JUNGLE = 300
 local TEAM_ALLY = myHero.team
@@ -36,6 +42,7 @@ do
         ["Ezreal"] = '0.01',
         ["Varus"] = '0.01',
         ["Katarina"] = '0.01',
+        ["Jhin"] = '0.01',
     }
     
     if SupportedChampions[myHero.charName] == nil then
@@ -60,7 +67,7 @@ end
 
 function AIO:CheckWall
     (from, to, distance)
-
+    
     local pos1 = to + (to - from):Normalized() * 50
     local pos2 = pos1 + (to - from):Normalized() * (distance - 50)
     local point1 = Point(pos1.x, pos1.z)
@@ -73,14 +80,14 @@ end
 
 function AIO:Cast
     (spell, unit, spelldata, hitchance)
-
+    
     if unit ~= nil then
         if unit.pos then
             if spelldata == nil then
                 return Control.CastSpell(spell, unit)
             end
             local pred = GetGamsteronPrediction(unit, spelldata, myHero)
-            if pred.Hitchance >= (hitchance or 3) then
+            if pred.Hitchance >= (hitchance or HITCHANCE_HIGH) then
                 return Control.CastSpell(spell, pred.CastPosition)
             end
             return false
@@ -90,49 +97,92 @@ function AIO:Cast
         end
         return false
     end
-
+    
     if spelldata == nil then
         return Control.CastSpell(spell)
     end
+    
+    return false
+end
 
+function AIO:CastTarget
+    (spell, data, damage, bbox, func)
+    
+    local range = data.Range + (bbox and myHero.boundingRadius or 0) - 35
+    local target = SDKTarget:GetComboTarget()
+    if target == nil or (func and not func(target)) then
+        target = SDKTarget:GetTarget(AIO:GetEnemyHeroes(range, bbox, func), damage)
+    end
+    
+    if target and target.distance < range + (bbox and target.boundingRadius or 0) then
+        return AIO:Cast(spell, target)
+    end
+    
+    return false
+end
+
+function AIO:CastSkillShot
+    (spell, data, damage, bbox, hitchance, func)
+    
+    local range = data.Range + (bbox and myHero.boundingRadius or 0) - 35
+    local target = SDKTarget:GetComboTarget()
+    if target == nil or (func and not func(target)) then
+        target = SDKTarget:GetTarget(AIO:GetEnemyHeroes(range, bbox, func), damage)
+    end
+    
+    if target and target.distance < range + (bbox and target.boundingRadius or 0) then
+        return AIO:Cast(spell, target, data, hitchance)
+    end
+    
+    return false
+end
+
+function AIO:IsReadyCombo
+    (spell, menuCombo, menuHarass, delays)
+    
+    local isCombo = SDKOrbwalker.Modes[ORBWALKER_MODE_COMBO]
+    local isHarass = SDKOrbwalker.Modes[ORBWALKER_MODE_HARASS]
+    if ((isCombo and menuCombo) or (isHarass and menuHarass)) and SDKSpell:IsReady(spell, delays) then
+        return true
+    end
     return false
 end
 
 function AIO:GetEnemyHeroes
-    (range)
-
-    return SDKObject:GetEnemyHeroes(range or 999999, false, true, true)
+    (range, bbox, func)
+    
+    return SDKObject:GetEnemyHeroes(range or 999999, bbox, true, true, false, func)
 end
 
 function AIO:GetEnemyHeroesAA
-    (range)
-
-    return SDKObject:GetEnemyHeroes(range or 999999, true, true, true, true)
+    (range, bbox, func)
+    
+    return SDKObject:GetEnemyHeroes(range or 999999, bbox, true, true, true, func)
 end
 
 function AIO:IsValidHero
     (unit, range, bbox)
-
+    
     if SDKObject:IsValid(unit, Obj_AI_Hero, true, true) and (range == nil or unit.distance < range + (bbox and unit.boundingRadius or 0)) then
         return true
     end
-
+    
     return false
 end
 
 function AIO:IsValidHeroAA
     (unit, range, bbox)
-
+    
     if SDKObject:IsValid(unit, Obj_AI_Hero, true, true, true) and (range == nil or unit.distance < range + (bbox and unit.boundingRadius or 0)) then
         return true
     end
-
+    
     return false
 end
 
 function AIO:GetClosestEnemy
     (enemyList, maxDistance)
-
+    
     local result = nil
     for i = 1, #enemyList do
         local hero = enemyList[i]
@@ -147,7 +197,7 @@ end
 
 function AIO:ImmobileTime
     (unit)
-
+    
     local iT = 0
     for i = 0, unit.buffCount do
         local buff = unit:GetBuff(i)
@@ -165,15 +215,15 @@ function AIO:ImmobileTime
 end
 
 function AIO:GetImmobileEnemy
-    (enemyList, maxDistance)
-
+    (enemyList, maxDistance, minDuration)
+    
+    minDuration = minDuration or 0
     local result = nil
     local num = 0
     for i = 1, #enemyList do
         local hero = enemyList[i]
-        local distance = hero.distance
         local iT = self:ImmobileTime(hero)
-        if distance < maxDistance and iT > num then
+        if hero.distance < maxDistance and iT >= minDuration and iT > num then
             num = iT
             result = hero
         end
@@ -183,11 +233,13 @@ end
 
 function AIO:Interrupter
     ()
-
-    local c = {}
+    
     local result = {}
+    
+    local c = {}
     c.__index = c
     setmetatable(result, c)
+    
     local cb = {}
     local spells =
     {
@@ -212,29 +264,25 @@ function AIO:Interrupter
         ["InfiniteDuress"] = true,
         ["XerathLocusOfPower2"] = true
     }
-    local function InterrupterTick()
-        for i = 1, GameHeroCount() do
-            local unit = GameHero(i)
-            if self:IsValidTarget(unit) and myHero.pos:DistanceTo(unit.pos) < 1500 then
+    
+    Callback.Add("Tick", function()
+        for i = 1, Game.HeroCount() do
+            local unit = Game.Hero(i)
+            if SDKObject:IsValid(unit, Obj_AI_Hero, true) and unit.distance < 1500 then
                 local spell = unit.activeSpell
-                if spell and spell.valid and spells[spell.name] and spell.castEndTime - GameTimer() > 0.33 then
+                if spell and spell.valid and spells[spell.name] and spell.castEndTime - Game.Timer() > 0.33 then
                     for j = 1, #cb do
                         cb[j](unit)
                     end
                 end
             end
         end
-    end
-    Callback.Add("Tick", function()
-        if _G.GamsteronDebug then
-            local status, err = pcall(function() InterrupterTick() end) if not status then print("INTERRUPTER TICK: " .. tostring(err)) end
-        else
-            InterrupterTick()
-        end
     end)
-    function c:OnInterrupt(cbb)
-        TableInsert(cb, cbb)
+    
+    function c:OnInterrupt(func)
+        table.insert(cb, func)
     end
+    
     return result
 end
 
@@ -1082,7 +1130,7 @@ function KogMaw:Tick()
     end
     -- W
     if ((SDKOrbwalker.Modes[ORBWALKER_MODE_COMBO] and Menu.wset.combo:Value()) or (SDKOrbwalker.Modes[ORBWALKER_MODE_HARASS] and Menu.wset.harass:Value())) and SDKOrbwalker:IsBeforeAttack(0.55) and SDKSpell:IsReady(_W, {q = 0.33, w = 0.5, e = 0.33, r = 0.33}) then
-        local enemyList = AIO:GetEnemyHeroesAA(610 + (20 * myHero:GetSpellData(_W).level) + myHero.boundingRadius - 35)
+        local enemyList = AIO:GetEnemyHeroesAA(610 + (20 * myHero:GetSpellData(_W).level) + myHero.boundingRadius - 35, true)
         if #enemyList > 0 and AIO:Cast(HK_W) then
             return
         end
@@ -1213,7 +1261,7 @@ end
 
 function KogMaw:PreAttack(args)
     if ((SDKOrbwalker.Modes[ORBWALKER_MODE_COMBO] and Menu.wset.combo:Value()) or (SDKOrbwalker.Modes[ORBWALKER_MODE_HARASS] and Menu.wset.harass:Value())) and SDKSpell:IsReady(_W, {q = 0.33, w = 0.5, e = 0.33, r = 0.33}) then
-        local enemyList = AIO:GetEnemyHeroesAA(610 + (20 * myHero:GetSpellData(_W).level) + myHero.boundingRadius - 35)
+        local enemyList = AIO:GetEnemyHeroesAA(610 + (20 * myHero:GetSpellData(_W).level) + myHero.boundingRadius - 35, true)
         if #enemyList > 0 and AIO:Cast(HK_W) then
             args.Process = false
         end
@@ -2104,7 +2152,7 @@ function Varus:Tick()
             end
         end
         if not result and Menu.rset.rci:Value() then
-            local t = AIO:GetImmobileEnemy(enemyList, 900)
+            local t = AIO:GetImmobileEnemy(enemyList, 900, 0.25)
             if t and t.distance < self.RData.Range then
                 result = AIO:Cast(HK_R, t)
             end
@@ -2640,8 +2688,167 @@ function Katarina:IsReady(slot)
     return false
 end
 
-Callback.Add("Load", function()
+class "Jhin"
 
+function Jhin:__init()
+    
+    self.HasPBuff = false
+    self.HasRBuff = false
+    
+    self.R_Polygon = nil
+    self.R_CanDraw = false
+    self.R_StartPos = nil
+    self.R_Pos1 = nil
+    self.R_Middle = nil
+    self.R_Pos2 = nil
+    
+    self.QData = {Delay = 0.25, Range = 550, }
+    self.WData = {Delay = 0.75, Range = 3000, Radius = 45, Speed = math.huge, Type = 0, Collision = false, }
+    self.EData = {Delay = 0.25, Range = 750, Radius = 120, Speed = 1600, Type = 1, Collision = false, }
+    self.RData = {Delay = 0.25, Range = 3500, Radius = 80, Speed = 5000, Type = 0, Collision = false, }
+end
+
+function Jhin:CreateMenu()
+    Menu = MenuElement({name = "Gamsteron Jhin", id = "gsojhin", type = MENU, leftIcon = "https://raw.githubusercontent.com/gamsteron/GOS-External/master/Icons/gsojhin23d.png"})
+    Menu:MenuElement({id = "autor", name = "Auto R -> if jhin has R Buff", value = true})
+    Menu:MenuElement({name = "Q settings", id = "qset", type = MENU})
+    Menu.qset:MenuElement({id = "combo", name = "Combo", value = true})
+    Menu.qset:MenuElement({id = "harass", name = "Harass", value = false})
+    Menu:MenuElement({name = "W settings", id = "wset", type = MENU})
+    Menu.wset:MenuElement({id = "stun", name = "Only if stun (marked targets)", value = true})
+    Menu.wset:MenuElement({id = "combo", name = "Combo", value = true})
+    Menu.wset:MenuElement({id = "harass", name = "Harass", value = false})
+    Menu:MenuElement({name = "E settings", id = "eset", type = MENU})
+    Menu.eset:MenuElement({id = "onlyimmo", name = "Only Immobile", value = true})
+    Menu.eset:MenuElement({id = "combo", name = "Combo", value = true})
+    Menu.eset:MenuElement({id = "harass", name = "Harass", value = false})
+end
+
+function Jhin:Tick
+    ()
+    
+    self.HasPBuff = SDKBuff:HasBuff(myHero, "jhinpassivereload")
+    
+    self:RLogic()
+    
+    if (self.HasRBuff) then
+        return
+    end
+    
+    if (self.HasPBuff or SDKOrbwalker:CanMove()) and SDKCursor.Step == 0 then
+        
+        if (AIO:IsReadyCombo(_Q, Menu.qset.combo:Value(), Menu.qset.harass:Value(), {q = 1, w = 0.75, e = 0.35, r = 0.5, })) then
+            if AIO:CastTarget(HK_Q, self.QData, DAMAGE_TYPE_PHYSICAL, true) then
+                return
+            end
+        end
+        
+        if AIO:IsReadyCombo(_W, Menu.wset.combo:Value(), Menu.wset.harass:Value(), {q = 0.35, w = 1, e = 0.35, r = 0.5, }) then
+            if AIO:CastSkillShot(HK_W, self.WData, DAMAGE_TYPE_PHYSICAL, false, HITCHANCE_HIGH, function(unit)
+                if (Menu.wset.stun:Value()) then
+                    if (SDKBuff:HasBuff(unit, "jhinespotteddebuff")) then
+                        return true
+                    end
+                    return false
+                end
+                return true
+            end) then return end
+        end
+    end
+    
+    if (AIO:IsReadyCombo(_E, Menu.eset.combo:Value(), Menu.eset.harass:Value(), {q = 0.35, w = 0.75, e = 1, r = 0.5, })) then
+        local target = AIO:GetImmobileEnemy(AIO:GetEnemyHeroes(), self.EData.Range, 0.5)
+        if target and AIO:Cast(HK_E, target.pos) then
+            return
+        end
+        if not Menu.eset.onlyimmo:Value() and AIO:CastSkillShot(HK_E, self.EData, DAMAGE_TYPE_PHYSICAL, false, HITCHANCE_HIGH) then
+            return
+        end
+    end
+end
+
+function Jhin:Draw
+    ()
+    
+    if self.R_CanDraw then
+        local p1 = self.R_StartPos:To2D()
+        local p2 = self.R_Pos1:To2D()
+        local p3 = self.R_Pos2:To2D()
+        Draw.Line(p1.x, p1.y, p2.x, p2.y, 1, Draw.Color(255, 255, 255, 255))
+        Draw.Line(p1.x, p1.y, p3.x, p3.y, 1, Draw.Color(255, 255, 255, 255))
+    end
+end
+
+function Jhin:RLogic
+    ()
+    
+    local spell = myHero.activeSpell
+    if (spell and spell.valid and spell.name:lower() == "jhinr") then
+        self.HasRBuff = true
+        if (self.R_CanDraw == false and Game.Timer() > SDKSpell.RkTimer + 0.250) then
+            self.R_CanDraw = true
+            local middlePos = Vector(spell.placementPos)
+            local startPos = Vector(spell.startPos)
+            local pos1 = startPos + (middlePos - startPos):Rotated(0, 30.6 * math.pi / 180, 0):Normalized() * 3500
+            local pos2 = startPos + (middlePos - startPos):Rotated(0, -30.6 * math.pi / 180, 0):Normalized() * 3500
+            self.R_Polygon =
+            {
+                pos1 + (pos1 - startPos):Normalized() * 3500,
+                pos2 + (pos2 - startPos):Normalized() * 3500,
+                startPos,
+            }
+            self.R_Middle = middlePos
+            self.R_Pos1 = pos1
+            self.R_Pos2 = pos2
+            self.R_StartPos = startPos
+        end
+        if (self.R_CanDraw == true and Menu.autor:Value() and SDKSpell:IsReady(_R, {q = 0, w = 0, e = 0, r = 0.75})) then
+            local rTargets = {}
+            local enemyList = AIO:GetEnemyHeroes(3500)
+            for i, unit in pairs(enemyList) do
+                if (SDKMath:InsidePolygon(self.R_Polygon, unit) == true) then
+                    table.insert(rTargets, unit)
+                end
+            end
+            local rTarget = SDKTarget:GetTarget(rTargets, 0)
+            if (rTarget) then
+                local HitChance = 3
+                local Pred = GetGamsteronPrediction(rTarget, self.RData, myHero)
+                if (Pred.Hitchance >= HitChance and SDKMath:InsidePolygon(self.R_Polygon, Pred.CastPosition) == true) then
+                    Control.CastSpell(HK_R, Pred.CastPosition)
+                end
+            end
+        end
+    elseif (self.HasRBuff == true and self.R_CanDraw == true and Game.Timer() > SDKSpell.RkTimer + 0.500) then
+        self.HasRBuff = false
+        self.R_CanDraw = false
+    elseif (Game.Timer() < SDKSpell.RkTimer + 0.35) then
+        self.HasRBuff = true
+    elseif self.HasRBuff then
+        self.HasRBuff = false
+    end
+end
+
+function Jhin:CanAttack
+    ()
+    
+    if SDKSpell:CheckSpellDelays({q = 0.25, w = 0.75, e = 0.25, r = 0.5}) and not self.HasPBuff and not self.HasRBuff then
+        return true
+    end
+    return false
+end
+
+function Jhin:CanMove
+    ()
+    
+    if SDKSpell:CheckSpellDelays({q = 0.15, w = 0.6, e = 0.15, r = 0.5}) and not self.HasRBuff then
+        return true
+    end
+    return false
+end
+
+Callback.Add("Load", function()
+    
     SDKColor = _G.SDK.Color
     SDKMenu = _G.SDK.Menu
     SDKAction = _G.SDK.Action
@@ -2653,11 +2860,11 @@ Callback.Add("Load", function()
     SDKDamage = _G.SDK.Damage
     SDKCursor = _G.SDK.Cursor
     SDKHealth = _G.SDK.HealthPrediction
-    SDKMath = _G.SDK.math
+    SDKMath = _G.SDK.Math
     SDKData = _G.SDK.Data
     SDKSpell = _G.SDK.Spell
     SDKAttack = _G.SDK.Attack
-
+    
     local C = _G[myHero.charName]()
     C:CreateMenu()
     Menu:MenuElement({name = "Version " .. SupportedChampions[myHero.charName], type = _G.SPACE, id = "verspace"})
@@ -2750,5 +2957,23 @@ end)
     local et = Game.Timer() - set - 0.067;
     if et > 0.8 and et < 0.9 then
         print(et);
+    end
+]]
+
+--[[
+    local str = ""
+    local sd = myHero:GetSpellData(_W)
+    for i, k in pairs(sd) do
+        str = str .. i .. ": " .. k .. "\n"
+    end
+    str = str .. tostring(sd.ammoTime - Game.Timer())
+    Draw.Text(str, myHero.pos:To2D())
+    local s = myHero.activeSpell
+    if s and s.valid then
+        set = s.startTime
+    end
+    local et = Game.Timer() - set - 0.067
+    if et > 0.8 and et < 0.9 then
+        print(et)
     end
 ]]
