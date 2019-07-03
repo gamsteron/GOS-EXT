@@ -1,6 +1,8 @@
+--0.05
+
 _G.SDK =
 {
-    Version = '0.04 - Beta',
+    Version = '0.05 - Beta',
     Load = {},
     Draw = {},
     Tick = {},
@@ -3252,6 +3254,25 @@ function Math:GetDistanceSquared
     local dx = v1.x - v2.x
     local dz = (v1.z or v1.y) - (v2.z or v2.y)
     return dx * dx + dz * dz
+end
+
+function Math:InsidePolygon
+    (polygon, point)
+
+    local result = false
+    local j = #polygon
+    point = point.pos or point
+    local pointx = point.x
+    local pointz = point.z or point.y
+    for i = 1, #polygon do
+        if (polygon[i].z < pointz and polygon[j].z >= pointz or polygon[j].z < pointz and polygon[i].z >= pointz) then
+            if (polygon[i].x + (pointz - polygon[i].z) / (polygon[j].z - polygon[i].z) * (polygon[j].x - polygon[i].x) < pointx) then
+                result = not result
+            end
+        end
+        j = i
+    end
+    return result
 end
 
 function Math:GetDistance
