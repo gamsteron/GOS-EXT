@@ -1,4 +1,4 @@
---0.02
+--0.03
 
 local myHero, os, math, Game, Vector, Control, Draw, table, pairs, GetTickCount = myHero, os, math, Game, Vector, Control, Draw, table, pairs, GetTickCount
 
@@ -1857,8 +1857,31 @@ class "Ezreal"
 function Ezreal:__init()
     self.QData = {Delay = 0.25, Radius = 60, Range = 1150, Speed = 2000, Collision = true, Type = _G.SPELLTYPE_LINE}
     self.WData = {Delay = 0.25, Radius = 60, Range = 1150, Speed = 2000, Collision = false, Type = _G.SPELLTYPE_LINE}
-    self.QFarm = nil
     self.LastEFake = 0
+    
+    -- Q LASTHIT/LANECLEAR
+    
+    local getDamage = function()
+        return ((25 * myHero:GetSpellData(_Q).level) - 10) + (1.1 * myHero.totalDamage) + (0.4 * myHero.ap)
+    end
+    
+    local canLastHit = function()
+        return Menu.qset.clearm.lhenabled:Value() and 100 * myHero.mana / myHero.maxMana >= Menu.qset.clearm.lhmana:Value()
+    end
+    
+    local canLaneClear = function()
+        return Menu.qset.clearm.lcenabled:Value() and 100 * myHero.mana / myHero.maxMana >= Menu.qset.clearm.lcmana:Value()
+    end
+    
+    local isQReady = function()
+        return SDKSpell:IsReady(_Q, {q = 0.33, w = 0.33, e = 0.2, r = 0.77})
+    end
+    
+    local getDrawMenu = function()
+        return Menu.draws.qfarm.lasthit, Menu.draws.qfarm.almostlasthit
+    end
+    
+    SDKSpell:SpellClear(_Q, self.QData, isQReady, canLastHit, canLaneClear, getDrawMenu, getDamage)
 end
 
 function Ezreal:CreateMenu()
@@ -1906,18 +1929,6 @@ function Ezreal:CreateMenu()
     Menu.draws.qfarm.almostlasthit:MenuElement({name = "Color", id = "color", color = Draw.Color(150, 239, 159, 55)})
     Menu.draws.qfarm.almostlasthit:MenuElement({name = "Width", id = "width", value = 3, min = 1, max = 10})
     Menu.draws.qfarm.almostlasthit:MenuElement({name = "Radius", id = "radius", value = 50, min = 1, max = 100})
-end
-
-function Ezreal:Farm()
-    -- [ mana percent ]
-    local manaPercent = 100 * myHero.mana / myHero.maxMana
-    
-    -- [ q farm ]
-    if Menu.qset.clearm.lhenabled:Value() or Menu.qset.clearm.lcenabled:Value() then
-        if manaPercent > Menu.qset.clearm.lhmana:Value() then
-            self.QFarm:Tick()
-        end
-    end
 end
 
 function Ezreal:WndMsg(msg, wParam)
@@ -1978,40 +1989,6 @@ function Ezreal:Tick()
                 if result then break end
             end
         end
-        
-        -- [ cast q clear ]
-        if not result and Menu.qset.clearm.lhenabled:Value() and not SDKOrbwalker.IsNone and not SDKOrbwalker.Modes[ORBWALKER_MODE_COMBO] and manaPercent > Menu.qset.clearm.lhmana:Value() then
-            -- [ last hit ]
-            local lhtargets = self.QFarm:GetLastHitTargets()
-            for i = 1, #lhtargets do
-                local unit = lhtargets[i]
-                if unit.alive and unit:GetCollision(self.QData.Radius + 35, self.QData.Speed, self.QData.Delay) == 1 then
-                    result = AIO:Cast(HK_Q, unit:GetPrediction(self.QData.Speed, self.QData.Delay))
-                    if result then
-                        SDKOrbwalker:SetAttack(false)
-                        DelayAction(function() SDKOrbwalker:SetAttack(true) end, self.QData.Delay + (unit.pos:DistanceTo(myHero.pos) / self.QData.Speed) + 0.05)
-                        break
-                    end
-                end
-            end
-        end
-        if not result and Menu.qset.clearm.lcenabled:Value() and SDKOrbwalker.Modes[ORBWALKER_MODE_LANECLEAR] and not self.QFarm:ShouldWait() and manaPercent > Menu.qset.clearm.lcmana:Value() then
-            -- [ enemy heroes ]
-            local enemyHeroes = AIO:GetEnemyHeroes(self.Range)
-            for i = 1, #enemyHeroes do
-                result = AIO:Cast(HK_Q, enemyHeroes[i], self.QData, Menu.qset.hitchance:Value() + 1)
-                if result then break end
-            end if result then return end
-            -- [ lane clear ]
-            local lctargets = self.QFarm:GetLaneClearTargets()
-            for i = 1, #lctargets do
-                local unit = lctargets[i]
-                if unit.alive and unit:GetCollision(self.QData.Radius + 35, self.QData.Speed, self.QData.Delay) == 1 then
-                    result = AIO:Cast(HK_Q, unit:GetPrediction(self.QData.Speed, self.QData.Delay))
-                    if result then break end
-                end
-            end
-        end
     end
     
     -- [ use w ]
@@ -2046,24 +2023,6 @@ function Ezreal:Draw()
             Draw.Text("Auto Q Disabled", Menu.draws.autoq.size:Value(), posX, posY, Draw.Color(255, 255, 000, 000))
         end
     end
-    -- [ q farm ]
-    local lhmenu = Menu.draws.qfarm.lasthit
-    local lcmenu = Menu.draws.qfarm.almostlasthit
-    if lhmenu.enabled:Value() or lcmenu.enabled:Value() then
-        local fm = self.QFarm.FarmMinions
-        for i = 1, #fm do
-            local minion = fm[i]
-            if minion.LastHitable and lhmenu.enabled:Value() then
-                Draw.Circle(minion.Minion.pos, lhmenu.radius:Value(), lhmenu.width:Value(), lhmenu.color:Value())
-            elseif minion.AlmostLastHitable and lcmenu.enabled:Value() then
-                Draw.Circle(minion.Minion.pos, lcmenu.radius:Value(), lcmenu.width:Value(), lcmenu.color:Value())
-            end
-        end
-    end
-end
-
-function Ezreal:QClear()
-    self.QFarm = SDKSpell:SpellClear(_Q, self.QData, function() return ((25 * myHero:GetSpellData(_Q).level) - 10) + (1.1 * myHero.totalDamage) + (0.4 * myHero.ap) end)
 end
 
 function Ezreal:CanAttack()
@@ -2883,28 +2842,6 @@ Callback.Add("Load", function()
     
     if C.PreAttack then
         SDKOrbwalker:OnPreAttack(function(args) C:PreAttack(args) end)
-    end
-    
-    if C.QClear then
-        C:QClear()
-    end
-    
-    if C.WClear then
-        C:WClear()
-    end
-    
-    if C.EClear then
-        C:EClear()
-    end
-    
-    if C.RClear then
-        C:RClear()
-    end
-    
-    if C.Farm then
-        table.insert(_G.SDK.Tick, function()
-            C:Farm()
-        end)
     end
     
     if C.Tick then
