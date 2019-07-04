@@ -1,8 +1,8 @@
---0.05
+--0.06
 
 _G.SDK =
 {
-    Version = '0.05 - Beta',
+    Version = '0.06 - Beta',
     Load = {},
     Draw = {},
     Tick = {},
@@ -2738,7 +2738,7 @@ function Health:OnTick()
     
     for i = 1, Game.WardCount() do
         local obj = Game.Ward(i)
-        if obj and obj.team == Data.EnemyTeam and obj.alive and Math:IsInRange(myHero, obj, attackRange + 35) then
+        if obj and obj.team == Data.EnemyTeam and obj.visible and obj.alive and Math:IsInRange(myHero, obj, attackRange + 35) then
             table.insert(self.EnemyWardsInAttackRange, obj)
         end
     end
@@ -3258,7 +3258,7 @@ end
 
 function Math:InsidePolygon
     (polygon, point)
-
+    
     local result = false
     local j = #polygon
     point = point.pos or point
@@ -5031,4 +5031,10 @@ Callback.Add('Load', function()
     Callback.Add("WndMsg", function(msg, wParam)
         for i = 1, #sdk.WndMsg do sdk.WndMsg[i](msg, wParam) end
     end)
+
+    -- Disabling GoS Orbwalker
+    if _G.Orbwalker then
+        _G.Orbwalker.Enabled:Value(false);
+        _G.Orbwalker.Drawings.Enabled:Value(false);
+    end
 end)
