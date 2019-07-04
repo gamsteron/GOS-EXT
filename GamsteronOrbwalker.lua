@@ -1,8 +1,8 @@
---0.06
+--0.07
 
 _G.SDK =
 {
-    Version = '0.06 - Beta',
+    Version = '0.07 - Beta',
     Load = {},
     Draw = {},
     Tick = {},
@@ -201,8 +201,7 @@ function Action:Add
     (task, startTime, endTime)
     
     startTime = startTime or 0
-    endTime = endTime or startTime
-    endTime = endTime == 0 and 10000 or endTime
+    endTime = endTime or 10000
     table.insert(self.Tasks, {task, os.clock() + startTime, os.clock() + startTime + endTime})
 end
 
@@ -886,7 +885,7 @@ function Target:GetKalistaTarget
     local range, radius, objects
     
     range = myHero.range - 35
-    radius = myHero.radius
+    radius = myHero.boundingRadius
     
     objects = Object:GetEnemyMinions(range + radius, true, true, true)
     if #objects > 0 then
@@ -2594,6 +2593,14 @@ function Health:Init
     self.JungleMinionsInAttackRange = {}
     self.EnemyStructuresInAttackRange = {}
     self.AlliesSearchingTargetDamage = {}
+    
+    self.Spells = {}
+    self.LastHitHandle = 0
+    self.LaneClearHandle = 0
+end
+
+function Health:AddSpell(class)
+    table.insert(self.Spells, class)
 end
 
 --ok
@@ -2638,6 +2645,11 @@ function Health:OnTick()
         for k, v in pairs(self.Handles) do
             self.Handles[k] = nil
         end
+    end
+    
+    -- SPELLS
+    for i = 1, #self.Spells do
+        self.Spells[i]:Reset()
     end
     
     if Orbwalker.IsNone or Orbwalker.Modes[Orbwalker.ORBWALKER_MODE_COMBO] then return end
@@ -2803,6 +2815,11 @@ function Health:OnTick()
     for i = 1, #self.EnemyMinionsInAttackRange do
         local target = self.EnemyMinionsInAttackRange[i]
         table.insert(self.FarmMinions, self:SetLastHitable(target, time + target.distance / speed, Damage:GetAutoAttackDamage(myHero, target, self.StaticAutoAttackDamage)))
+    end
+    
+    -- SPELLS
+    for i = 1, #self.Spells do
+        self.Spells[i]:Tick()
     end
     
     -- DRAW
@@ -2976,6 +2993,7 @@ function Health:GetLastHitTarget
         if Object:IsValid(minion.Minion, Obj_AI_Minion, true, true) and minion.LastHitable and minion.PredictedHP < min and Data:IsInAutoAttackRange(myHero, minion.Minion) then
             min = minion.PredictedHP
             result = minion.Minion
+            self.LastHitHandle = result.handle
         end
     end
     
@@ -3080,6 +3098,7 @@ function Health:GetLaneClearTarget
             end
         end
         if laneMinion ~= nil then
+            self.LaneClearHandle = laneMinion.handle
             return laneMinion
         end
         if other ~= nil then
@@ -4542,8 +4561,6 @@ Spell =
 function Spell:Init
     ()
     
-    self.SpellClears = {}
-    
     self.QTimer = 0
     self.WTimer = 0
     self.ETimer = 0
@@ -4677,37 +4694,49 @@ function Spell:CheckSpellDelays2
 end
 
 function Spell:SpellClear
-    (spell, spelldata, damagefunc)
+    (spell, spelldata, isReady, canLastHit, canLaneClear, getDrawMenu, getDamage)
     
     local c =
     {
+        HK = 0,
+        Radius = spelldata.Radius,
         Delay = spelldata.Delay,
         Speed = spelldata.Speed,
         Range = spelldata.Range,
         ShouldWaitTime = 0,
         IsLastHitable = false,
-        LastHandle = 0,
-        LastLCHandle = 0,
+        LastHitHandle = 0,
+        LaneClearHandle = 0,
         FarmMinions = {},
     }
+    
+    if spell == _Q then
+        c.HK = HK_Q
+    elseif spell == _W then
+        c.HK = HK_W
+    elseif spell == _E then
+        c.HK = HK_E
+    elseif spell == _R then
+        c.HK = HK_R
+    else
+        print('SDK.Spell.SpellClear: error, spell must be _Q, _W, _E or _R')
+        return
+    end
     
     function c:GetLastHitTargets
         ()
         
         local result = {}
-        if self.IsLastHitable and not Orbwalker.IsNone and not Orbwalker.Modes[Orbwalker.ORBWALKER_MODE_COMBO] then
-            for i, minion in pairs(self.FarmMinions) do
-                if minion.LastHitable then
-                    local unit = minion.Minion
-                    if Object:IsValid(unit, Obj_AI_Minion, true, true, false) then
-                        local orb_obj = Health:LastLastHit()
-                        if orb_obj == nil or unit.handle ~= orb_obj.handle then
-                            table.insert(result, unit)
-                        end
-                    end
+        
+        for i, minion in pairs(self.FarmMinions) do
+            if minion.LastHitable then
+                local unit = minion.Minion
+                if unit.handle ~= Health.LastHitHandle then
+                    table.insert(result, unit)
                 end
             end
         end
+        
         return result
     end
     
@@ -4715,17 +4744,14 @@ function Spell:SpellClear
         ()
         
         local result = {}
-        if Orbwalker.Modes[Orbwalker.ORBWALKER_MODE_LANECLEAR] then
-            for i, minion in pairs(self.FarmMinions) do
-                local unit = minion.Minion
-                if Object:IsValid(unit, Obj_AI_Minion, true, true, false) then
-                    local orb_obj = Health:LastLaneClear()
-                    if orb_obj == nil or unit.handle ~= orb_obj.handle then
-                        table.insert(result, unit)
-                    end
-                end
+        
+        for i, minion in pairs(self.FarmMinions) do
+            local unit = minion.Minion
+            if unit.handle ~= Health.LaneClearHandle then
+                table.insert(result, unit)
             end
         end
+        
         return result
     end
     
@@ -4739,51 +4765,110 @@ function Spell:SpellClear
         (target, time, damage)
         
         local hpPred = Health:GetPrediction(target, time)
-        local lastHitable = hpPred - damage < 0
-        if lastHitable then self.IsLastHitable = true end
+        
+        local lastHitable = false
         local almostLastHitable = false
-        if not lastHitable then
-            local dmg = Health:GetPrediction(target, myHero:GetSpellData(spell).cd + (time * 3))
-            almostLastHitable = dmg - damage < 0
-        end
-        if almostLastHitable then
+        
+        if hpPred - damage < 0 then
+            lastHitable = true
+            self.IsLastHitable = true
+        elseif Health:GetPrediction(target, myHero:GetSpellData(spell).cd + (time * 3)) - damage < 0 then
+            almostLastHitable = true
             self.ShouldWaitTime = Game.Timer()
         end
+        
         return {LastHitable = lastHitable, Unkillable = hpPred < 0, Time = time, AlmostLastHitable = almostLastHitable, PredictedHP = hpPred, Minion = target}
+    end
+    
+    function c:Reset()
+        for i = 1, #self.FarmMinions do
+            table.remove(self.FarmMinions, i)
+        end
+        self.IsLastHitable = false
+        self.LastHitHandle = 0
+        self.LaneClearHandle = 0
     end
     
     function c:Tick
         ()
         
-        self.FarmMinions = {}
-        self.IsLastHitable = false
+        if Orbwalker:IsAutoAttacking() or not isReady() then
+            return
+        end
+        
+        local isLastHit = canLastHit() and (Orbwalker.Modes[Orbwalker.ORBWALKER_MODE_LASTHIT] or Orbwalker.Modes[Orbwalker.ORBWALKER_MODE_LANECLEAR])
+        local isLaneClear = canLaneClear() and Orbwalker.Modes[Orbwalker.ORBWALKER_MODE_LANECLEAR]
+        
+        if not isLastHit and not isLaneClear then
+            return
+        end
+        
+        if Cursor.Step ~= 0 then
+            return
+        end
+        
         if myHero:GetSpellData(spell).level == 0 then
             return
         end
+        
         if myHero.mana < myHero:GetSpellData(spell).mana then
             return
         end
-        if _G.Game.CanUseSpell(spell) ~= 0 and myHero:GetSpellData(spell).currentCd > 0.5 then
+        
+        if Game.CanUseSpell(spell) ~= 0 and myHero:GetSpellData(spell).currentCd > 0.5 then
             return
         end
-        if Orbwalker.Modes[Orbwalker.ORBWALKER_MODE_COMBO] or Orbwalker.IsNone then
-            return
-        end
+        
         local targets = Object:GetEnemyMinions(self.Range - 35, false, true, true)
-        local projectileSpeed = self.Speed
-        local winduptime = self.Delay
-        local latency = Data:GetLatency() * 0.5
-        local pos = myHero.pos
         for i = 1, #targets do
             local target = targets[i]
-            local FlyTime = Math:GetDistance(pos, target.pos) / projectileSpeed
-            table.insert(self.FarmMinions, self:SetLastHitable(target, winduptime + FlyTime + latency, damagefunc()))
+            table.insert(self.FarmMinions, self:SetLastHitable(target, self.Delay + target.distance / self.Speed + Data:GetLatency(), getDamage()))
+        end
+        
+        if self.IsLastHitable and (isLastHit or isLaneClear) then
+            local targets = self:GetLastHitTargets()
+            for i = 1, #targets do
+                local unit = targets[i]
+                if unit.alive and unit:GetCollision(self.Radius + 35, self.Speed, self.Delay) == 1 then
+                    if Control.CastSpell(self.HK, unit:GetPrediction(self.Speed, self.Delay)) then
+                        self.LastHitHandle = unit.handle
+                        Orbwalker:SetAttack(false)
+                        Action:Add(function()
+                            Orbwalker:SetAttack(true)
+                        end, self.Delay + (unit.distance / self.Speed) + 0.05, 0)
+                        break
+                    end
+                end
+            end
+        end
+        
+        if isLaneClear and self.LastHitHandle == 0 and not self:ShouldWait() then
+            local targets = self:GetLaneClearTargets()
+            for i = 1, #targets do
+                local unit = targets[i]
+                if unit.alive and unit:GetCollision(self.Radius + 35, self.Speed, self.Delay) == 1 then
+                    if Control.CastSpell(self.HK, unit:GetPrediction(self.Speed, self.Delay)) then
+                        self.LaneClearHandle = unit.handle
+                    end
+                end
+            end
+        end
+        
+        local lhmenu, lcmenu = getDrawMenu()
+        if lhmenu.enabled:Value() or lcmenu.enabled:Value() then
+            local targets = self.FarmMinions
+            for i = 1, #targets do
+                local minion = targets[i]
+                if minion.LastHitable and lhmenu.enabled:Value() then
+                    Draw.Circle(minion.Minion.pos, lhmenu.radius:Value(), lhmenu.width:Value(), lhmenu.color:Value())
+                elseif minion.AlmostLastHitable and lcmenu.enabled:Value() then
+                    Draw.Circle(minion.Minion.pos, lcmenu.radius:Value(), lcmenu.width:Value(), lcmenu.color:Value())
+                end
+            end
         end
     end
     
-    table.insert(self.SpellClears, c)
-    
-    return c
+    Health:AddSpell(c)
 end
 
 --OK
@@ -5031,7 +5116,7 @@ Callback.Add('Load', function()
     Callback.Add("WndMsg", function(msg, wParam)
         for i = 1, #sdk.WndMsg do sdk.WndMsg[i](msg, wParam) end
     end)
-
+    
     -- Disabling GoS Orbwalker
     if _G.Orbwalker then
         _G.Orbwalker.Enabled:Value(false);
