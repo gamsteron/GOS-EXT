@@ -1,8 +1,8 @@
---0.07
+--0.08
 
 _G.SDK =
 {
-    Version = '0.07 - Beta',
+    Version = '0.08',
     Load = {},
     Draw = {},
     Tick = {},
@@ -366,7 +366,7 @@ function Object:IsHeroImmortal
             return true
         end
     end
-    if unit.isImmortal and not Buff:HasBuff(unit, 'willrevive') then
+    if unit.isImmortal and not Buff:HasBuff(unit, 'willrevive') and not Buff:HasBuff(unit, 'zacrebirthready') then
         return true
     end
     return false
