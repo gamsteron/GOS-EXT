@@ -108,9 +108,9 @@ do
     local success, newVersion = AutoUpdate({
         version = SCRIPT_VERSION,
         scriptPath = COMMON_PATH .. scriptName .. ".lua",
-        scriptUrl = "https://raw.githubusercontent.com/gamsteron/GOS-EXT/Common/master/Common/" .. scriptName .. ".lua",
+        scriptUrl = "https://raw.githubusercontent.com/gamsteron/GOS-EXT/master/Common/" .. scriptName .. ".lua",
         versionPath = COMMON_PATH .. scriptName .. ".version",
-        versionUrl = "https://raw.githubusercontent.com/gamsteron/GOS-EXT/Common/master/Common/" .. scriptName .. ".version"
+        versionUrl = "https://raw.githubusercontent.com/gamsteron/GOS-EXT/master/Common/" .. scriptName .. ".version"
     })
     if (success) then
         print(scriptName .. " updated to version " .. newVersion .. ". Please Reload with 2x F6 !")
