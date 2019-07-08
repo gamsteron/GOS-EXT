@@ -1,4 +1,4 @@
---0.03
+--0.04
 
 local myHero, os, math, Game, Vector, Control, Draw, table, pairs, GetTickCount = myHero, os, math, Game, Vector, Control, Draw, table, pairs, GetTickCount
 
@@ -36,7 +36,7 @@ do
         ["Twitch"] = '0.01',
         ["Morgana"] = '0.01',
         ["Karthus"] = '0.01',
-        ["KogMaw"] = '0.01',
+        ["KogMaw"] = '0.02',
         ["Vayne"] = '0.01',
         ["Brand"] = '0.01',
         ["Ezreal"] = '0.01',
@@ -1129,7 +1129,7 @@ function KogMaw:Tick()
         return
     end
     -- W
-    if ((SDKOrbwalker.Modes[ORBWALKER_MODE_COMBO] and Menu.wset.combo:Value()) or (SDKOrbwalker.Modes[ORBWALKER_MODE_HARASS] and Menu.wset.harass:Value())) and SDKOrbwalker:IsBeforeAttack(0.55) and SDKSpell:IsReady(_W, {q = 0.33, w = 0.5, e = 0.33, r = 0.33}) then
+    if ((SDKOrbwalker.Modes[ORBWALKER_MODE_COMBO] and Menu.wset.combo:Value()) or (SDKOrbwalker.Modes[ORBWALKER_MODE_HARASS] and Menu.wset.harass:Value())) and SDKAttack:IsBefore(0.55) and SDKSpell:IsReady(_W, {q = 0.33, w = 0.5, e = 0.33, r = 0.33}) then
         local enemyList = AIO:GetEnemyHeroesAA(610 + (20 * myHero:GetSpellData(_W).level) + myHero.boundingRadius - 35, true)
         if #enemyList > 0 and AIO:Cast(HK_W) then
             return
