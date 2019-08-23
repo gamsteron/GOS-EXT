@@ -1,8 +1,8 @@
---0.08
+--0.09
 
 _G.SDK =
 {
-    Version = '0.08',
+    Version = '0.09',
     Load = {},
     Draw = {},
     Tick = {},
@@ -366,9 +366,10 @@ function Object:IsHeroImmortal
             return true
         end
     end
+    --[[ anivia passive, olaf R, ...
     if unit.isImmortal and not Buff:HasBuff(unit, 'willrevive') and not Buff:HasBuff(unit, 'zacrebirthready') then
         return true
-    end
+    end--]]
     return false
 end
 
@@ -415,6 +416,20 @@ function Object:GetObjectsFromTable
     return result
 end
 
+function Object:GetHeroes
+    (range, bbox, visible, immortal, jaxE, func)
+    local result = {}
+    local a = self:GetEnemyHeroes(range, bbox, visible, immortal, jaxE, func)
+    local b = self:GetAllyHeroes(range, bbox, visible, immortal, jaxE, func)
+    for i = 1, #a do
+        table.insert(result, a[i])
+    end
+    for i = 1, #b do
+        table.insert(result, b[i])
+    end
+    return result
+end
+
 function Object:GetEnemyHeroes
     (range, bbox, visible, immortal, jaxE, func)
     local result = {}
@@ -443,6 +458,20 @@ function Object:GetAllyHeroes
     return result
 end
 
+function Object:GetMinions
+    (range, bbox, visible, immortal, func)
+    local result = {}
+    local a = self:GetEnemyMinions(range, bbox, visible, immortal, func)
+    local b = self:GetAllyMinions(range, bbox, visible, immortal, func)
+    for i = 1, #a do
+        table.insert(result, a[i])
+    end
+    for i = 1, #b do
+        table.insert(result, b[i])
+    end
+    return result
+end
+
 function Object:GetEnemyMinions
     (range, bbox, visible, immortal, func)
     local result = {}
@@ -467,6 +496,20 @@ function Object:GetAllyMinions
                 table.insert(result, obj)
             end
         end
+    end
+    return result
+end
+
+function Object:GetOtherMinions
+    (range, bbox, visible, immortal, func)
+    local result = {}
+    local a = self:GetOtherAllyMinions(range, bbox, visible, immortal, func)
+    local b = self:GetOtherEnemyMinions(range, bbox, visible, immortal, func)
+    for i = 1, #a do
+        table.insert(result, a[i])
+    end
+    for i = 1, #b do
+        table.insert(result, b[i])
     end
     return result
 end
@@ -509,6 +552,20 @@ function Object:GetMonsters
                 table.insert(result, obj)
             end
         end
+    end
+    return result
+end
+
+function Object:GetTurrets
+    (range, bbox, visible, immortal, func)
+    local result = {}
+    local a = self:GetEnemyTurrets(range, bbox, visible, immortal, func)
+    local b = self:GetAllyTurrets(range, bbox, visible, immortal, func)
+    for i = 1, #a do
+        table.insert(result, a[i])
+    end
+    for i = 1, #b do
+        table.insert(result, b[i])
     end
     return result
 end
@@ -2582,36 +2639,46 @@ function Health:Init
     self.ShouldWaitTime = 0
     self.OnUnkillableC = {}
     
-    self.AllyTurret = nil
-    self.StaticAutoAttackDamage = nil
+    self.HighestEndTime = {}
     self.ActiveAttacks = {}
+    self.ActiveAttacksNoTarget = {}
+    
+    self.AllyTurret = nil
+    self.AllyTurretHandle = nil
+    self.StaticAutoAttackDamage = nil
     self.FarmMinions = {}
     self.Handles = {}
-    self.AllyMinions = {}
+    self.AllyMinionsHandles = {}
     self.EnemyWardsInAttackRange = {}
     self.EnemyMinionsInAttackRange = {}
     self.JungleMinionsInAttackRange = {}
     self.EnemyStructuresInAttackRange = {}
-    self.AlliesSearchingTargetDamage = {}
+    
+    self.TargetsHealth = {}
+    self.AttackersDamage = {}
     
     self.Spells = {}
     self.LastHitHandle = 0
     self.LaneClearHandle = 0
 end
 
-function Health:AddSpell(class)
+--ok
+function Health:AddSpell
+    (class)
+    
     table.insert(self.Spells, class)
 end
 
 --ok
 function Health:OnTick()
-    local attackRange, structures, pos, speed, windup, time
+    local attackRange, structures, pos, speed, windup, time, anim
     
     -- RESET ALL
     if self.ShouldRemoveObjects then
         self.ShouldRemoveObjects = false
         
         self.AllyTurret = nil
+        self.AllyTurretHandle = nil
         self.StaticAutoAttackDamage = nil
         
         for i = 1, #self.FarmMinions do
@@ -2620,10 +2687,6 @@ function Health:OnTick()
         
         for i = 1, #self.EnemyWardsInAttackRange do
             table.remove(self.EnemyWardsInAttackRange, i)
-        end
-        
-        for i = 1, #self.AllyMinions do
-            table.remove(self.AllyMinions, i)
         end
         
         for i = 1, #self.EnemyMinionsInAttackRange do
@@ -2638,8 +2701,19 @@ function Health:OnTick()
             table.remove(self.EnemyStructuresInAttackRange, i)
         end
         
-        for k, v in pairs(self.AlliesSearchingTargetDamage) do
-            self.AlliesSearchingTargetDamage[k] = nil
+        for k, v in pairs(self.AttackersDamage) do
+            for k2, v2 in pairs(v) do
+                self.AttackersDamage[k][k2] = nil
+            end
+            self.AttackersDamage[k] = nil
+        end
+        
+        for k, v in pairs(self.AllyMinionsHandles) do
+            self.AllyMinionsHandles[k] = nil
+        end
+        
+        for k, v in pairs(self.TargetsHealth) do
+            self.TargetsHealth[k] = nil
         end
         
         for k, v in pairs(self.Handles) do
@@ -2652,7 +2726,7 @@ function Health:OnTick()
         self.Spells[i]:Reset()
     end
     
-    if Orbwalker.IsNone or Orbwalker.Modes[Orbwalker.ORBWALKER_MODE_COMBO] then return end
+    if Orbwalker.Modes[Orbwalker.ORBWALKER_MODE_COMBO] then return end--or Orbwalker.IsNone
     
     self.IsLastHitable = false
     self.ShouldRemoveObjects = true
@@ -2664,11 +2738,11 @@ function Health:OnTick()
     for i = 1, Game.MinionCount() do
         local obj = Game.Minion(i)
         if Object:IsValid(obj, Obj_AI_Minion, true) and Math:IsInRange(myHero, obj, 2000) then
-            self:OnAttack(obj)
-            self.Handles[obj.handle] = obj
+            local handle = obj.handle
+            self.Handles[handle] = obj
             local team = obj.team
             if team == Data.AllyTeam then
-                table.insert(self.AllyMinions, obj)
+                self.AllyMinionsHandles[handle] = obj
             elseif team == Data.EnemyTeam then
                 if not obj.isImmortal and Math:IsInRange(myHero, obj, attackRange + obj.boundingRadius) then
                     table.insert(self.EnemyMinionsInAttackRange, obj)
@@ -2681,39 +2755,10 @@ function Health:OnTick()
         end
     end
     
-    for i = 1, #self.AllyMinions do
-        local obj = self.AllyMinions[i]
-        local spell = obj.activeSpell
-        if spell == nil or not spell.valid or not spell.isAutoAttack or obj.pathing.hasMovePath then
-            local nearestMinion = nil
-            local nearestDistance = 10000
-            for j = 1, #self.EnemyMinionsInAttackRange do
-                local enemyMinion = self.EnemyMinionsInAttackRange[j]
-                local distance = Math:GetDistanceSquared(obj.posTo, enemyMinion)
-                if nearestDistance > distance then
-                    nearestMinion = enemyMinion
-                    nearestDistance = distance
-                end
-            end
-            if nearestMinion ~= nil then
-                local distance = Math:GetDistanceSquared(obj.posTo, nearestMinion)
-                local range = Data:GetAutoAttackRange(obj, nearestMinion) + 250
-                if distance <= range * range then
-                    local handle = nearestMinion.handle
-                    if self.AlliesSearchingTargetDamage[handle] == nil then
-                        self.AlliesSearchingTargetDamage[handle] = 0
-                    end
-                    self.AlliesSearchingTargetDamage[handle] = self.AlliesSearchingTargetDamage[handle] + Damage:GetAutoAttackDamage(obj, nearestMinion)
-                end
-            end
-        end
-    end
-    
     for i = 1, Game.HeroCount() do
         local obj = Game.Hero(i)
         if Object:IsValid(obj, Obj_AI_Hero, true) and not obj.isMe and Math:IsInRange(myHero, obj, 2000) then
             self.Handles[obj.handle] = obj
-            self:OnAttack(obj)
         end
     end
     
@@ -2725,9 +2770,9 @@ function Health:OnTick()
         
         if objType == Obj_AI_Turret then
             self.Handles[obj.handle] = obj
-            self:OnAttack(obj)
             if obj.team == Data.AllyTeam then
                 self.AllyTurret = obj
+                self.AllyTurretHandle = obj.handle
             end
         end
         
@@ -2755,51 +2800,55 @@ function Health:OnTick()
         end
     end
     
-    -- RECALCULATE ATTACKS
-    for handle, attacks in pairs(self.ActiveAttacks) do
-        local attacker = self.Handles[handle]
-        if attacker then
-            local count = 0
-            local animationT = 0
-            local windUpT = 0
-            local endTimes = {}
-            for endTime, attack in pairs(attacks) do
-                if self.Handles[attack.Target] == nil then
-                    self.ActiveAttacks[handle][endTime] = nil
-                else
-                    animationT = attack.AnimationTime
-                    windUpT = attack.WindUpTime
-                    table.insert(endTimes, endTime)
-                    count = count + 1
-                end
+    -- ON ATTACK
+    for handle, obj in pairs(self.Handles) do
+        local s = obj.activeSpell
+        if s and s.valid and s.isAutoAttack then
+            if self.ActiveAttacks[handle] == nil then
+                self.ActiveAttacks[handle] = {}
             end
-            if count == 0 then
-                self.ActiveAttacks[handle] = nil
-            else
-                table.sort(endTimes, function(a, b) return a > b end)
-                if Game.Timer() < (endTimes[1] - animationT - 0.05) + windUpT and attacker.pathing.hasMovePath then
-                    for i = 1, #endTimes do
-                        self.ActiveAttacks[handle][endTimes[i]] = nil
-                    end
-                    self.ActiveAttacks[handle] = nil
-                elseif count > 1 then
-                    local check = true
-                    while check do
-                        check = false
-                        for i = 1, #endTimes - 1 do
-                            local t1 = endTimes[i]
-                            local t2 = endTimes[i + 1]
-                            if t1 - t2 < animationT - 0.1 then
-                                self.ActiveAttacks[handle][t2] = nil
-                                table.remove(endTimes, i + 1)
-                                check = true
-                                break
+            if s.endTime and self.ActiveAttacks[handle][s.endTime] == nil and s.speed and s.animation and s.windup and s.target then
+                local t = s.endTime - Game.Timer()
+                if t > 0 and t < 2.5 then
+                    self.ActiveAttacks[handle][s.endTime] =
+                    {
+                        Speed = s.speed,
+                        EndTime = s.endTime,
+                        AnimationTime = s.animation,
+                        WindUpTime = s.windup,
+                        StartTime = s.endTime - s.animation,
+                        Target = s.target,
+                    }
+                    for handle2, attacks in pairs(self.ActiveAttacks) do
+                        for endTime, attack in pairs(attacks) do
+                            if s.endTime - endTime > 15 then
+                                self.ActiveAttacks[handle][endTime] = nil
                             end
                         end
                     end
+                    local endTime = self.HighestEndTime[handle]
+                    if endTime ~= nil and s.endTime - endTime < s.animation - 0.1 then
+                        self.ActiveAttacks[handle][endTime] = nil
+                    end
+                    self.HighestEndTime[handle] = s.endTime
                 end
             end
-        else
+        end
+    end
+    
+    -- RECALCULATE ATTACKS
+    for handle, endTime in pairs(self.HighestEndTime) do
+        if self.Handles[handle] == nil then
+            self.HighestEndTime[handle] = nil
+        end
+    end
+    for handle, attack in pairs(self.ActiveAttacksNoTarget) do
+        if self.Handles[handle] == nil then
+            self.ActiveAttacksNoTarget[handle] = nil
+        end
+    end
+    for handle, attacks in pairs(self.ActiveAttacks) do
+        if self.Handles[handle] == nil then
             for endTime, attack in pairs(attacks) do
                 self.ActiveAttacks[handle][endTime] = nil
             end
@@ -2812,9 +2861,10 @@ function Health:OnTick()
     speed = Attack:GetProjectileSpeed()
     windup = Attack:GetWindup()
     time = windup - Data:GetLatency() - self.ExtraFarmDelay:Value() * 0.001
+    anim = Attack:GetAnimation()
     for i = 1, #self.EnemyMinionsInAttackRange do
         local target = self.EnemyMinionsInAttackRange[i]
-        table.insert(self.FarmMinions, self:SetLastHitable(target, time + target.distance / speed, Damage:GetAutoAttackDamage(myHero, target, self.StaticAutoAttackDamage)))
+        table.insert(self.FarmMinions, self:SetLastHitable(target, anim, time + target.distance / speed, Damage:GetAutoAttackDamage(myHero, target, self.StaticAutoAttackDamage)))
     end
     
     -- SPELLS
@@ -2840,59 +2890,41 @@ end
 
 --ok
 function Health:GetPrediction
-    (target, time, lane)
+    (target, time)
     
-    local pos, team, handle, health, attackers
-    
+    local timer, pos, team, handle, health, attackers
+    timer = Game.Timer()
     pos = target.pos
-    team = target.team
     handle = target.handle
-    health = target.health + Data:GetTotalShield(target)
+    if self.TargetsHealth[handle] == nil then
+        self.TargetsHealth[handle] = target.health + Data:GetTotalShield(target)
+    end
+    health = self.TargetsHealth[handle]
     
     for attackerHandle, attacks in pairs(self.ActiveAttacks) do
         local attacker = self.Handles[attackerHandle]
         if attacker then
-            if lane then
-                local aa = attacker.attackData
-                if handle == aa.target then
-                    local damage = Damage:GetAutoAttackDamage(attacker, target)
-                    local startT, speed = aa.endTime - aa.animationTime, aa.projectileSpeed
-                    local flyT = speed > 0 and Math:GetDistance(attacker.pos, pos) / speed or 0
-                    local endT = (startT + aa.windUpTime + flyT) - Game.Timer()
-                    if endT < 0 then
-                        if Game.Timer() > aa.endTime then
-                            endT = aa.windUpTime + flyT
-                            startT = Game.Timer()
-                        else
-                            endT = (aa.endTime - Game.Timer()) + aa.windUpTime + flyT
-                            startT = Game.Timer() + (aa.endTime - Game.Timer())
+            
+            for endTime, attack in pairs(attacks) do
+                if attack.Target == handle then
+                    
+                    local speed, startT, flyT, endT, damage
+                    speed = attack.Speed
+                    startT = attack.StartTime
+                    flyT = speed > 0 and Math:GetDistance(attacker.pos, pos) / speed or 0
+                    endT = (startT + attack.WindUpTime + flyT) - timer
+                    
+                    if endT > 0 and endT < time and success then
+                        
+                        if self.AttackersDamage[attackerHandle] == nil then
+                            self.AttackersDamage[attackerHandle] = {}
                         end
-                    end
-                    local c = 1
-                    while (endT < time) do
+                        if self.AttackersDamage[attackerHandle][handle] == nil then
+                            self.AttackersDamage[attackerHandle][handle] = Damage:GetAutoAttackDamage(attacker, target)
+                        end
+                        damage = self.AttackersDamage[attackerHandle][handle]
+                        
                         health = health - damage
-                        endT = (startT + aa.windUpTime + flyT + c * aa.animationTime) - Game.Timer()
-                        c = c + 1
-                    end
-                end
-            else
-                for endTime, attack in pairs(attacks) do
-                    if attack.Target == handle then
-                        local speed, flyT, endT
-                        speed = attack.Speed
-                        flyT = speed > 0 and Math:GetDistance(attacker.pos, pos) / speed or 0
-                        endT = (attack.StartTime + attack.WindUpTime + flyT) - Game.Timer()
-                        if endT > 0 then
-                            --[[if speed > 0 and Game.Timer() > attack.StartTime + attack.WindUpTime then
-                                local xd = attack.StartPos:Extended(pos, (Game.Timer() - (attack.StartTime + attack.WindUpTime)) * speed)
-                                Draw.Circle(xd, 15)
-                            end]]
-                            if endT < time then
-                                health = health - Damage:GetAutoAttackDamage(attacker, target)
-                            end
-                        else
-                            self.ActiveAttacks[attackerHandle][endTime] = nil
-                        end
                     end
                 end
             end
@@ -2903,71 +2935,245 @@ function Health:GetPrediction
 end
 
 --ok
-function Health:SetLastHitable
-    (target, time, damage)
+function Health:LocalGetPrediction
+    (target, time)
     
-    local health, lastHitable, almostLastHitable
+    local timer, pos, team, handle, health, attackers, turretAttacked
+    turretAttacked = false
+    timer = Game.Timer()
+    pos = target.pos
+    handle = target.handle
+    if self.TargetsHealth[handle] == nil then
+        self.TargetsHealth[handle] = target.health + Data:GetTotalShield(target)
+    end
+    health = self.TargetsHealth[handle]
     
-    health = self:GetPrediction(target, time, false)
-    if health < 0 then
-        for i = 1, #self.OnUnkillableC do
-            self.OnUnkillableC[i](target)
+    for attackerHandle, attacks in pairs(self.ActiveAttacks) do
+        local attacker = self.Handles[attackerHandle]
+        if attacker then
+            
+            for endTime, attack in pairs(attacks) do
+                if attack.Target == handle then
+                    
+                    local speed, startT, flyT, endT, damage
+                    speed = attack.Speed
+                    startT = attack.StartTime
+                    flyT = speed > 0 and Math:GetDistance(attacker.pos, pos) / speed or 0
+                    endT = (startT + attack.WindUpTime + flyT) - timer
+                    
+                    -- laneClear
+                    if endT < 0 and timer - attack.EndTime < 1.25 then
+                        endT = attack.WindUpTime + flyT
+                        endT = timer > attack.EndTime and endT or endT + (attack.EndTime - timer)
+                        startT = timer > attack.EndTime and timer or attack.EndTime
+                    end
+                    
+                    if endT > 0 and endT < time then
+                        
+                        -- damage
+                        if self.AttackersDamage[attackerHandle] == nil then
+                            self.AttackersDamage[attackerHandle] = {}
+                        end
+                        if self.AttackersDamage[attackerHandle][handle] == nil then
+                            self.AttackersDamage[attackerHandle][handle] = Damage:GetAutoAttackDamage(attacker, target)
+                        end
+                        damage = self.AttackersDamage[attackerHandle][handle]
+                        
+                        -- laneClear
+                        local c = 1
+                        while (endT < time) do
+                            if attackerHandle == self.AllyTurretHandle then
+                                turretAttacked = true
+                            else
+                                health = health - damage
+                            end
+                            endT = (startT + attack.WindUpTime + flyT + c * attack.AnimationTime) - timer
+                            c = c + 1
+                            if c > 10 then
+                                print("ERROR LANECLEAR!")
+                                break
+                            end
+                        end
+                    end
+                end
+            end
         end
     end
     
-    lastHitable = health - damage < 0
-    if lastHitable then
-        self.IsLastHitable = true
-    end
-    
-    if not self.IsLastHitable then
-        local extraDamage = self.AlliesSearchingTargetDamage[target.handle]
-        damage = damage + (extraDamage == nil and 0 or extraDamage)
-        if self:GetPrediction(target, 1.25 * Attack:GetAnimation() + 2.25 * time + 0.25, true) - damage < 0 then
-            almostLastHitable = true
-            self.ShouldWaitTime = Game.Timer()
+    -- laneClear
+    for attackerHandle, obj in pairs(self.AllyMinionsHandles) do
+        local aaData = obj.attackData
+        local isMoving = obj.pathing.hasMovePath
+        
+        if aaData == nil or aaData.target == nil or self.Handles[aaData.target] == nil or isMoving or self.ActiveAttacks[attackerHandle] == nil then
+            local distance = Math:GetDistance(obj.pos, pos)
+            local range = Data:GetAutoAttackRange(obj, target)
+            local extraRange = isMoving and 250 or 0
+            
+            if distance < range + extraRange then
+                local speed, flyT, endT, damage
+                
+                speed = aaData.projectileSpeed
+                distance = distance > range and range or distance
+                flyT = speed > 0 and distance / speed or 0
+                endT = aaData.windUpTime + flyT
+                
+                if endT < time then
+                    if self.AttackersDamage[attackerHandle] == nil then
+                        self.AttackersDamage[attackerHandle] = {}
+                    end
+                    if self.AttackersDamage[attackerHandle][handle] == nil then
+                        self.AttackersDamage[attackerHandle][handle] = Damage:GetAutoAttackDamage(obj, target)
+                    end
+                    damage = self.AttackersDamage[attackerHandle][handle]
+                    
+                    local c = 1
+                    while (endT < time) do
+                        health = health - damage
+                        endT = aaData.windUpTime + flyT + c * aaData.animationTime
+                        c = c + 1
+                        if c > 10 then
+                            print("ERROR LANECLEAR!")
+                            break
+                        end
+                    end
+                end
+            end
         end
     end
     
-    return {LastHitable = lastHitable, Unkillable = health < 0, AlmostLastHitable = almostLastHitable, PredictedHP = health, Minion = target}
+    return health, turretAttacked
 end
 
 --ok
-function Health:OnAttack
-    (obj)
+function Health:SetLastHitable
+    (target, anim, time, damage)
     
-    local activeSpell = obj.activeSpell
-    if activeSpell and activeSpell.valid and activeSpell.isAutoAttack then
-        local handle = obj.handle
-        if self.ActiveAttacks[handle] == nil then
-            self.ActiveAttacks[handle] = {}
+    local timer, handle, currentHealth, health, lastHitable, almostLastHitable, almostalmost, unkillable
+    
+    timer = Game.Timer()
+    handle = target.handle
+    currentHealth = target.health + Data:GetTotalShield(target)
+    self.TargetsHealth[handle] = currentHealth
+    health = self:GetPrediction(target, time)
+    
+    lastHitable = false
+    almostLastHitable = false
+    almostalmost = false
+    unkillable = false
+    
+    -- unkillable
+    if health < 0 then
+        unkillable = true
+        for i = 1, #self.OnUnkillableC do
+            self.OnUnkillableC[i](target)
         end
-        if self.ActiveAttacks[handle][activeSpell.endTime] == nil then
-            local team = obj.team
-            local type = obj.type
-            self.ActiveAttacks[handle][activeSpell.endTime] =
-            {
-                AttackerIsHero = type == Obj_AI_Hero,
-                AttackerIsTurret = type == Obj_AI_Turret,
-                AttackerIsAlly = team == Data.AllyTeam,
-                AttackerIsEnemy = team == Data.EnemyTeam,
-                Speed = activeSpell.speed,
-                EndTime = activeSpell.endTime,
-                AnimationTime = activeSpell.animation,
-                WindUpTime = activeSpell.windup,
-                StartTime = activeSpell.endTime - activeSpell.animation,
-                Target = activeSpell.target,
-                StartPos = obj.pos,
-            }
+        return
+        {
+            LastHitable = lastHitable,
+            Unkillable = unkillable,
+            AlmostLastHitable = almostLastHitable,
+            PredictedHP = health,
+            Minion = target,
+            AlmostAlmost = almostalmost,
+            Time = time,
+        }
+    end
+    
+    -- lasthitable
+    if health - damage < 0 then
+        lastHitable = true
+        self.IsLastHitable = true
+        return
+        {
+            LastHitable = lastHitable,
+            Unkillable = unkillable,
+            AlmostLastHitable = almostLastHitable,
+            PredictedHP = health,
+            Minion = target,
+            AlmostAlmost = almostalmost,
+            Time = time,
+        }
+    end
+    
+    -- almost lasthitable
+    local turretAttack, extraTime, almostHealth, almostAlmostHealth, turretAttacked
+    turretAttack = self.AllyTurret ~= nil and self.AllyTurret.attackData or nil
+    extraTime = (1.5 - anim) * 0.3
+    extraTime = extraTime < 0 and 0 or extraTime
+    almostHealth, turretAttacked = self:LocalGetPrediction(target, anim + time + extraTime)-- + 0.25
+    if almostHealth < 0 then
+        almostLastHitable = true
+        self.ShouldWaitTime = GetTickCount()
+    elseif almostHealth - damage < 0 then
+        almostLastHitable = true
+    elseif currentHealth ~= almostHealth then
+        almostAlmostHealth, turretAttacked = self:LocalGetPrediction(target, 1.25 * anim + 1.25 * time + 0.5 + extraTime)
+        if almostAlmostHealth - damage < 0 then
+            almostalmost = true
         end
     end
+    
+    -- under turret, turret attackdata: 1.20048 0.16686 1200
+    if turretAttacked or (turretAttack and turretAttack.target == handle) or (self.AllyTurret and (Data:IsInAutoAttackRange(self.AllyTurret, target) or Data:IsInAutoAttackRange2(self.AllyTurret, target))) then
+        local nearTurret, isTurretTarget, maxHP, startTime, windUpTime, flyTime, turretDamage, turretHits
+        
+        nearTurret = true
+        isTurretTarget = turretAttack.target == handle
+        
+        maxHP = target.maxHealth
+        startTime = turretAttack.endTime - 1.20048
+        windUpTime = 0.16686
+        flyTime = Math:GetDistance(self.AllyTurret, target) / 1200
+        turretDamage = Damage:GetAutoAttackDamage(self.AllyTurret, target)
+        
+        turretHits = 1
+        while (maxHP > turretHits * turretDamage) do
+            turretHits = turretHits + 1
+            if turretHits > 10 then
+                print("ERROR TURRETHITS")
+                break
+            end
+        end
+        turretHits = turretHits - 1
+        
+        return
+        {
+            LastHitable = lastHitable,
+            Unkillable = unkillable,
+            AlmostLastHitable = almostLastHitable,
+            PredictedHP = health,
+            Minion = target,
+            AlmostAlmost = almostalmost,
+            Time = time,
+            -- turret
+            NearTurret = nearTurret,
+            IsTurretTarget = isTurretTarget,
+            TurretHits = turretHits,
+            TurretDamage = turretDamage,
+            TurretFlyDelay = flyTime,
+            TurretStart = startTime,
+            TurretWindup = windUpTime,
+        }
+    end
+    
+    return
+    {
+        LastHitable = lastHitable,
+        Unkillable = health < 0,
+        AlmostLastHitable = almostLastHitable,
+        PredictedHP = health,
+        Minion = target,
+        AlmostAlmost = almostalmost,
+        Time = time,
+    }
 end
 
 --ok
 function Health:ShouldWait
     ()
-    
-    return Game.Timer() < self.ShouldWaitTime + 0.5
+    -- why this delay ? because decreasing minion's health after attack is delayed, attack dissapear earlier + connection latency
+    return GetTickCount() < self.ShouldWaitTime + 250
 end
 
 --ok
@@ -3036,6 +3242,150 @@ function Health:GetHarassTarget
     end
 end
 
+function Health:GetLaneMinion
+    ()
+    
+    local laneMinion = nil
+    local num = 10000
+    for i = 1, #self.FarmMinions do
+        local minion = self.FarmMinions[i]
+        if Data:IsInAutoAttackRange(myHero, minion.Minion) then
+            if minion.PredictedHP < num and not minion.AlmostAlmost and not minion.AlmostLastHitable then--and (self.AllyTurret == nil or minion.CanUnderTurret) then
+                num = minion.PredictedHP
+                laneMinion = minion.Minion
+            end
+        end
+    end
+    
+    --[[
+ 
+        while (c >= 0) do
+            if health2 - c * turretDamage - damage > 0 then
+                if c == 1 or c > 2 then
+                    success = true
+                end
+                break
+            end
+            c = c - 1
+        end
+ 
+        if turretAttacked then
+            almostHealth = almostHealth - turretDamage
+        end
+ 
+        if almostLastHitable or almostalmost then
+            if turretAttacked or isTurretTarget then
+                if startTime + windUpTime + flyTime < timer then
+                    if health - turretDamage < 0 then
+                        print("unkillable")
+                    else
+ 
+                    end
+                end
+            else
+ 
+            end
+        end
+ 
+ 
+        if turretAttacked and almostHealth - damage > 0 then
+            success = true
+        elseif 
+            local turretAttack, startTime, windUpTime, flyTime, turretDamage
+            if startTime + windUpTime + flyTime < timer then
+ 
+            end
+        end
+        
+        if not success and health - turretDamage < 0 and turretAttack.target ~= handle then
+            if turretAttack.target == handle then
+                if healthUnderTurret - damage < 0 and startTime + windUpTime + flyTime > timer then
+                    success = true
+                end
+            else
+                success = true
+            end
+        end]]
+    --[[
+            -- on last hit
+            if lastHitable and healthUnderTurret - damage > 0 then
+                almostLastHitable = false
+                almostalmost = false
+                self.ShouldWaitTime = 0
+                lastHitable = false
+                success = true
+            end
+            if not success and not lastHitable and (almostLastHitable or almostalmost) then
+                
+            end almostHealth - turretDamage < 0 and almostHealth - damage > 0 then
+ 
+        if not success then
+            success = almostHealth == currentHealth and healthUnderTurret - turretDamage < 0
+        end
+ 
+        if not success then
+            success = currentHealth - almostHealth > 50 and almostHealth - turretDamage - damage > 0
+        end
+ 
+        if not success then
+            if almostHealth == currentHealth then
+                success = currentHealth - 2 * turretDamage < 0 and currentHealth - turretDamage - damage > 0
+            end
+        end]]
+    
+    -- or almostHealth - 2 * turretDamage > 0 or healthUnderTurret - turretDamage - damage > 0 then
+    
+    --local turretAttack = self.AllyTurret.attackData
+    --if turretAttack.target == handle then
+    --local endTime = (turretAttack.endTime - 1.20048) + 0.16686 + Math:GetDistance(self.AllyTurret, target) / 1200
+    --[[
+        if success then
+            almostalmost = false
+            almostLastHitable = false
+            canUnderTurret = true
+        end
+    end
+    
+    if almostLastHitable then
+        self.ShouldWaitTime = GetTickCount()
+    end]]
+    
+    --[[
+    LastHitable = lastHitable,
+    Unkillable = unkillable,
+    AlmostLastHitable = almostLastHitable,
+    PredictedHP = health,
+    Minion = target,
+    AlmostAlmost = almostalmost,
+    Time = time,
+    -- turret
+    NearTurret = nearTurret,
+    IsTurretTarget = isTurretTarget,
+    TurretHits = turretHits,
+    TurretDamage = turretDamage,
+    TurretFlyDelay = flyTime,
+    TurretStart = startTime,
+    TurretWindup = windUpTime,
+]]
+    
+    -- 0. all based on turret target timers, health | hp - x * turretDamage > 0 - this delay - hero delay
+    -- 1. hero attacks in turret hit delay | hp - heroDmg * x < 0
+    
+    --[[ get turret delay
+        local turretDelay
+        for i = 1, #self.FarmMinions do
+            local minion = self.FarmMinions[i]
+            if Data:IsInAutoAttackRange(myHero, minion.Minion) and minion.NearTurret then
+ 
+                if minion.IsTurretTarget then
+                    break
+                end
+            end
+        end]]
+    
+    return laneMinion
+end
+
 --ok
 function Health:GetLaneClearTarget
     ()
@@ -3077,30 +3427,15 @@ function Health:GetLaneClearTarget
                 return hero
             end
         end
-        --[[if self.LastHitMinion ~= nil then
-            if self.AlmostLastHitMinion ~= nil and not Utilities:IdEquals(self.AlmostLastHitMinion, self.LastHitMinion) and Utilities:IsSiegeMinion(self.AlmostLastHitMinion) then
-                return nil;
-            end
-            return self.LastHitMinion;
-        end--]]
-        --return self.UnderTurretMinion;
-        local laneMinion = nil
-        local num = 10000
-        for i = 1, #self.FarmMinions do
-            local minion = self.FarmMinions[i]
-            if Object:IsValid(minion.Minion, Obj_AI_Minion, true, true) and Data:IsInAutoAttackRange(myHero, minion.Minion) then
-                if minion.Minion.health == minion.PredictedHP and minion.PredictedHP < num then
-                    if self.AllyTurret == nil or not Data:IsInAutoAttackRange2(self.AllyTurret, minion.Minion) then
-                        num = minion.PredictedHP
-                        laneMinion = minion.Minion
-                    end
-                end
-            end
-        end
+        
+        -- lane minion
+        local laneMinion = self:GetLaneMinion()
         if laneMinion ~= nil then
             self.LaneClearHandle = laneMinion.handle
             return laneMinion
         end
+        
+        -- ward
         if other ~= nil then
             return other
         end
@@ -4191,8 +4526,8 @@ function Data:OnLoad()
                             self.AttackResetTimer = GetTickCount()
                             local startTime = GetTickCount() + 400
                             Action:Add(function()
-                                local activeSpell = myHero.activeSpell
-                                if activeSpell and activeSpell.valid and activeSpell.name == AttackResetSpellName then
+                                local s = myHero.activeSpell
+                                if s and s.valid and s.name == AttackResetSpellName then
                                     self.AttackResetTimer = GetTickCount()
                                     self.AttackResetSuccess = true
                                     --print("Attack Reset ActiveSpell")
