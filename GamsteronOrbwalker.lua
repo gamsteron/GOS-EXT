@@ -2641,7 +2641,6 @@ function Health:Init
     
     self.HighestEndTime = {}
     self.ActiveAttacks = {}
-    self.ActiveAttacksNoTarget = {}
     
     self.AllyTurret = nil
     self.AllyTurretHandle = nil
@@ -2838,11 +2837,6 @@ function Health:OnTick()
             self.HighestEndTime[handle] = nil
         end
     end
-    for handle, attack in pairs(self.ActiveAttacksNoTarget) do
-        if self.Handles[handle] == nil then
-            self.ActiveAttacksNoTarget[handle] = nil
-        end
-    end
     for handle, attacks in pairs(self.ActiveAttacks) do
         if self.Handles[handle] == nil then
             for endTime, attack in pairs(attacks) do
@@ -2944,6 +2938,8 @@ function Health:LocalGetPrediction
     end
     health = self.TargetsHealth[handle]
     
+    local handles = {}
+
     for attackerHandle, attacks in pairs(self.ActiveAttacks) do
         local attacker = self.Handles[attackerHandle]
         if attacker then
@@ -2966,6 +2962,8 @@ function Health:LocalGetPrediction
                     
                     if endT > 0 and endT < time then
                         
+                        handles[attackerHandle] = true
+
                         -- damage
                         if self.AttackersDamage[attackerHandle] == nil then
                             self.AttackersDamage[attackerHandle] = {}
@@ -2998,39 +2996,42 @@ function Health:LocalGetPrediction
     
     -- laneClear
     for attackerHandle, obj in pairs(self.AllyMinionsHandles) do
-        local aaData = obj.attackData
-        local isMoving = obj.pathing.hasMovePath
-        
-        if aaData == nil or aaData.target == nil or self.Handles[aaData.target] == nil or isMoving or self.ActiveAttacks[attackerHandle] == nil then
-            local distance = Math:GetDistance(obj.pos, pos)
-            local range = Data:GetAutoAttackRange(obj, target)
-            local extraRange = isMoving and 250 or 0
+
+        if handles[attackerHandle] == nil then
+            local aaData = obj.attackData
+            local isMoving = obj.pathing.hasMovePath
             
-            if distance < range + extraRange then
-                local speed, flyT, endT, damage
+            if aaData == nil or aaData.target == nil or self.Handles[aaData.target] == nil or isMoving or self.ActiveAttacks[attackerHandle] == nil then
+                local distance = Math:GetDistance(obj.pos, pos)
+                local range = Data:GetAutoAttackRange(obj, target)
+                local extraRange = isMoving and 250 or 0
                 
-                speed = aaData.projectileSpeed
-                distance = distance > range and range or distance
-                flyT = speed > 0 and distance / speed or 0
-                endT = aaData.windUpTime + flyT
-                
-                if endT < time then
-                    if self.AttackersDamage[attackerHandle] == nil then
-                        self.AttackersDamage[attackerHandle] = {}
-                    end
-                    if self.AttackersDamage[attackerHandle][handle] == nil then
-                        self.AttackersDamage[attackerHandle][handle] = Damage:GetAutoAttackDamage(obj, target)
-                    end
-                    damage = self.AttackersDamage[attackerHandle][handle]
+                if distance < range + extraRange then
+                    local speed, flyT, endT, damage
                     
-                    local c = 1
-                    while (endT < time) do
-                        health = health - damage
-                        endT = aaData.windUpTime + flyT + c * aaData.animationTime
-                        c = c + 1
-                        if c > 10 then
-                            print("ERROR LANECLEAR!")
-                            break
+                    speed = aaData.projectileSpeed
+                    distance = distance > range and range or distance
+                    flyT = speed > 0 and distance / speed or 0
+                    endT = aaData.windUpTime + flyT
+                    
+                    if endT < time then
+                        if self.AttackersDamage[attackerHandle] == nil then
+                            self.AttackersDamage[attackerHandle] = {}
+                        end
+                        if self.AttackersDamage[attackerHandle][handle] == nil then
+                            self.AttackersDamage[attackerHandle][handle] = Damage:GetAutoAttackDamage(obj, target)
+                        end
+                        damage = self.AttackersDamage[attackerHandle][handle]
+                        
+                        local c = 1
+                        while (endT < time) do
+                            health = health - damage
+                            endT = aaData.windUpTime + flyT + c * aaData.animationTime
+                            c = c + 1
+                            if c > 10 then
+                                print("ERROR LANECLEAR!")
+                                break
+                            end
                         end
                     end
                 end
