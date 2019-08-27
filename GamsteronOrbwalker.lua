@@ -158,7 +158,7 @@ function Menu:Init
     self.Main.Drawings:MenuElement({id = 'SelectedTarget', name = 'Selected Target', value = true})
     
     self.Main:MenuElement({name = '', type = _G.SPACE, id = 'GeneralSpace'})
-    self.Main:MenuElement({id = 'Latency', name = 'Latency', value = 50, min = 0, max = 120, step = 1, callback = function(value) _G.LATENCY = value end})
+    self.Main:MenuElement({id = 'Latency', name = 'Super important ! ms from game ! latency/ping/ms', value = 50, min = 0, max = 120, step = 1, callback = function(value) _G.LATENCY = value end})
     self.Main:MenuElement({id = 'CursorDelay', name = 'Cursor Delay', value = 30, min = 30, max = 50, step = 5})
     
     self.Main:MenuElement({name = '', type = _G.SPACE, id = 'VersionSpaceA'})
