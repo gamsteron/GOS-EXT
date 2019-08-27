@@ -1,8 +1,8 @@
---0.09
+--0.10
 
 _G.SDK =
 {
-    Version = '0.09',
+    Version = '0.10',
     Load = {},
     Draw = {},
     Tick = {},
@@ -78,7 +78,7 @@ Menu =
 
 function Menu:Init
     ()
-    self.Main = MenuElement({id = 'GSOProject', name = 'GSO Project', type = MENU, leftIcon = "https://raw.githubusercontent.com/gamsteron/GOS-External/master/Icons/rsz_gsoorbwalker.png"})
+    self.Main = MenuElement({id = 'GamsteronProject', name = 'GSO Project', type = MENU, leftIcon = "https://raw.githubusercontent.com/gamsteron/GOS-External/master/Icons/rsz_gsoorbwalker.png"})
     
     self.Target = self.Main:MenuElement({id = 'Target', name = 'Target Selector', type = MENU, leftIcon = "https://raw.githubusercontent.com/gamsteron/GOS-External/master/Icons/ts.png"})
     self.Target:MenuElement({id = 'Priorities', name = 'Priorities', type = MENU})
@@ -96,20 +96,20 @@ function Menu:Init
     self.Orbwalker.Keys:MenuElement({id = 'Flee', name = 'Flee Key', key = string.byte('A')})
     self.Orbwalker.Keys:MenuElement({id = 'HoldKey', name = 'Hold Key', key = string.byte('H'), tooltip = 'Should be same in game keybinds'})
     self.Orbwalker:MenuElement({id = 'General', name = 'General', type = MENU})
-    self.Orbwalker.General:MenuElement({id = 'AttackTargetKeyUse', name = 'Attack Target Key Use', value = true})
+    self.Orbwalker.General:MenuElement({id = 'AttackTargetKeyUse', name = 'Attack Target Key Use', value = false})
     self.Orbwalker.General:MenuElement({id = 'AttackTKey', name = 'Attack Target Key', key = string.byte('U'), tooltip = 'You should bind this one in ingame settings'})
     self.Orbwalker.General:MenuElement({id = 'AttackResetting', name = 'Attack Resetting', value = true})
     self.Orbwalker.General:MenuElement({id = 'FastKiting', name = 'Fast Kiting', value = true})
     self.Orbwalker.General:MenuElement({id = 'LaneClearHeroes', name = 'LaneClear Heroes', value = true})
-    self.Orbwalker.General:MenuElement({id = 'StickToTarget', name = 'Stick To Target: Only Melee', value = true})
-    self.Orbwalker.General:MenuElement({id = 'SkipTargets', name = 'Move Around Targets', value = true})
-    self.Orbwalker.General:MenuElement({id = 'MovementDelay', name = 'Movement Delay', value = 250, min = 0, max = 1000, step = 25})
+    self.Orbwalker.General:MenuElement({id = 'StickToTarget', name = 'Stick To Target: Only Melee', value = false})
+    self.Orbwalker.General:MenuElement({id = 'SkipTargets', name = 'Move Around Targets', value = false})
+    self.Orbwalker.General:MenuElement({id = 'MovementDelay', name = 'Movement Delay', value = 250, min = 150, max = 500, step = 50})
     self.Orbwalker.General:MenuElement({id = 'HoldRadius', name = 'Hold Radius', value = 0, min = 0, max = 250, step = 10})
     self.Orbwalker.General:MenuElement({id = 'ExtraWindUpTime', name = 'Extra WindUpTime', value = 0, min = -25, max = 75, step = 5})
     self.Orbwalker:MenuElement({id = 'RandomHumanizer', name = 'Random Humanizer', type = MENU})
     self.Orbwalker.RandomHumanizer:MenuElement({id = 'Enabled', name = 'Enabled', value = true})
-    self.Orbwalker.RandomHumanizer:MenuElement({id = 'Min', name = 'Min', value = 160, min = 0, max = 300, step = 10})
-    self.Orbwalker.RandomHumanizer:MenuElement({id = 'Max', name = 'Max', value = 240, min = 0, max = 400, step = 10})
+    self.Orbwalker.RandomHumanizer:MenuElement({id = 'Min', name = 'Min', value = 160, min = 150, max = 300, step = 10})
+    self.Orbwalker.RandomHumanizer:MenuElement({id = 'Max', name = 'Max', value = 240, min = 150, max = 400, step = 10})
     self.Orbwalker:MenuElement({id = 'Farming', name = 'Farming Settings', type = MENU})
     self.Orbwalker.Farming:MenuElement({id = 'LastHitPriority', name = 'Priorize Last Hit over Harass', value = true})
     self.Orbwalker.Farming:MenuElement({id = 'PushPriority', name = 'Priorize Push over Freeze', value = true})
@@ -158,8 +158,8 @@ function Menu:Init
     self.Main.Drawings:MenuElement({id = 'SelectedTarget', name = 'Selected Target', value = true})
     
     self.Main:MenuElement({name = '', type = _G.SPACE, id = 'GeneralSpace'})
-    self.Main:MenuElement({id = 'Latency', name = 'Latency', value = 30, min = 0, max = 120, step = 5, callback = function(value) _G.LATENCY = value end})
-    self.Main:MenuElement({id = 'CursorDelay', name = 'Cursor Delay', value = 30, min = 0, max = 50, step = 5})
+    self.Main:MenuElement({id = 'Latency', name = 'Latency', value = 50, min = 0, max = 120, step = 1, callback = function(value) _G.LATENCY = value end})
+    self.Main:MenuElement({id = 'CursorDelay', name = 'Cursor Delay', value = 30, min = 30, max = 50, step = 5})
     
     self.Main:MenuElement({name = '', type = _G.SPACE, id = 'VersionSpaceA'})
     self.Main:MenuElement({name = 'Version  ' .. SDK.Version, type = _G.SPACE, id = 'VersionSpaceB'})
@@ -2755,13 +2755,6 @@ function Health:OnTick()
         end
     end
     
-    for i = 1, Game.HeroCount() do
-        local obj = Game.Hero(i)
-        if Object:IsValid(obj, Obj_AI_Hero, true) and not obj.isMe and Math:IsInRange(myHero, obj, 2000) then
-            self.Handles[obj.handle] = obj
-        end
-    end
-    
     structures = Object:GetAllStructures(2000, false, true)
     
     for i = 1, #structures do
@@ -2799,39 +2792,42 @@ function Health:OnTick()
             table.insert(self.EnemyWardsInAttackRange, obj)
         end
     end
-    
+
     -- ON ATTACK
+    local timer = Game.Timer()
     for handle, obj in pairs(self.Handles) do
         local s = obj.activeSpell
         if s and s.valid and s.isAutoAttack then
             if self.ActiveAttacks[handle] == nil then
                 self.ActiveAttacks[handle] = {}
             end
-            if s.endTime and self.ActiveAttacks[handle][s.endTime] == nil and s.speed and s.animation and s.windup and s.target then
-                local t = s.endTime - Game.Timer()
-                if t > 0 and t < 2.5 then
-                    self.ActiveAttacks[handle][s.endTime] =
-                    {
-                        Speed = s.speed,
-                        EndTime = s.endTime,
-                        AnimationTime = s.animation,
-                        WindUpTime = s.windup,
-                        StartTime = s.endTime - s.animation,
-                        Target = s.target,
-                    }
-                    for handle2, attacks in pairs(self.ActiveAttacks) do
-                        for endTime, attack in pairs(attacks) do
-                            if s.endTime - endTime > 15 then
-                                self.ActiveAttacks[handle][endTime] = nil
-                            end
+            local endTime = s.endTime
+            local speed = s.speed
+            local animation = s.animation
+            local windup = s.windup
+            local target = s.target
+            if endTime and self.ActiveAttacks[handle][endTime] == nil and speed and animation and windup and target and endTime > timer and math.abs(endTime - timer - animation) < 0.05 then
+                self.ActiveAttacks[handle][endTime] =
+                {
+                    Speed = speed,
+                    EndTime = endTime,
+                    AnimationTime = animation,
+                    WindUpTime = windup,
+                    StartTime = endTime - animation,
+                    Target = target,
+                }
+                for handle2, attacks in pairs(self.ActiveAttacks) do
+                    for endTime2, attack in pairs(attacks) do
+                        if endTime - endTime2 > 15 then
+                            self.ActiveAttacks[handle][endTime2] = nil
                         end
                     end
-                    local endTime = self.HighestEndTime[handle]
-                    if endTime ~= nil and s.endTime - endTime < s.animation - 0.1 then
-                        self.ActiveAttacks[handle][endTime] = nil
-                    end
-                    self.HighestEndTime[handle] = s.endTime
                 end
+                local endTime2 = self.HighestEndTime[handle]
+                if endTime2 ~= nil and endTime - endTime2 < animation - 0.1 then
+                    self.ActiveAttacks[handle][endTime] = nil
+                end
+                self.HighestEndTime[handle] = endTime
             end
         end
     end
@@ -2904,18 +2900,18 @@ function Health:GetPrediction
     for attackerHandle, attacks in pairs(self.ActiveAttacks) do
         local attacker = self.Handles[attackerHandle]
         if attacker then
-            
+            local c = 0
             for endTime, attack in pairs(attacks) do
                 if attack.Target == handle then
-                    
+
                     local speed, startT, flyT, endT, damage
                     speed = attack.Speed
                     startT = attack.StartTime
                     flyT = speed > 0 and Math:GetDistance(attacker.pos, pos) / speed or 0
                     endT = (startT + attack.WindUpTime + flyT) - timer
                     
-                    if endT > 0 and endT < time and success then
-                        
+                    if endT > 0 and endT < time then
+                        c = c + 1
                         if self.AttackersDamage[attackerHandle] == nil then
                             self.AttackersDamage[attackerHandle] = {}
                         end
@@ -3914,6 +3910,7 @@ Data =
     --9.13.1
     HeroNames =
     {
+        ['practicetool_targetdummy'] = true,
         ['aatrox'] = true,
         ['ahri'] = true,
         ['akali'] = true,
