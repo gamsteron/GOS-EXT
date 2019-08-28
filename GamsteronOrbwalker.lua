@@ -1,8 +1,8 @@
---0.11b
+--0.11
 
 _G.SDK =
 {
-    Version = '0.11b',
+    Version = '0.11',
     Load = {},
     Draw = {},
     Tick = {},
@@ -273,7 +273,6 @@ function LevelUp:Tick()
     local rLevel = rData.level
     if self.RCount > rLevel then
         self:PressKeys(self.SpellToKey[_R])
-        self.RCount = self.RCount + 1
         return
     end
     
@@ -281,7 +280,6 @@ function LevelUp:Tick()
     local qLevel = qData.level
     if self.QCount > qLevel then
         self:PressKeys(self.SpellToKey[_Q])
-        self.QCount = self.QCount + 1
         return
     end
     
@@ -289,7 +287,6 @@ function LevelUp:Tick()
     local wLevel = wData.level
     if self.WCount > wLevel then
         self:PressKeys(self.SpellToKey[_W])
-        self.WCount = self.WCount + 1
         return
     end
     
@@ -297,7 +294,6 @@ function LevelUp:Tick()
     local eLevel = eData.level
     if self.ECount > eLevel then
         self:PressKeys(self.SpellToKey[_E])
-        self.ECount = self.ECount + 1
         return
     end
 end
