@@ -1,8 +1,8 @@
---0.11
+--0.11b
 
 _G.SDK =
 {
-    Version = '0.11',
+    Version = '0.11b',
     Load = {},
     Draw = {},
     Tick = {},
@@ -160,6 +160,7 @@ function Menu:Init
     self.AutoLevelUp = self.Main:MenuElement({id = 'AutoLvlUp', name = 'Auto Level Up', type = MENU, leftIcon = "https://image.ibb.co/b3XCCa/N6p_VC84qnoo_Es_OCJ15dija_OIfi_Zw_Bi1t0z6_IDwczm_x_KO1_E_y9_NGaogv5jhj_QDx3_YRIF_w300.png"});
     self.AutoLevelUp:MenuElement({id = 'Enabled', name = 'Enabled', value = false})
     self.SkillOrder = self.AutoLevelUp:MenuElement({id = 'SkillOrder' .. myHero.charName, name = 'Skill Order', value = 2, drop = {myHero.charName .. ' Most Frequent', myHero.charName .. ' Highest Win'}})
+    self.AutoLevelUp:MenuElement({id = 'StartAt', name = 'Start at level', value = 2, min = 1, max = 18, step = 1})
     
     self.Main:MenuElement({name = '', type = _G.SPACE, id = 'GeneralSpace'})
     self.Main:MenuElement({id = 'Latency', name = 'Super important ! ms from game ! latency/ping/ms', value = 50, min = 0, max = 120, step = 1, callback = function(value) _G.LATENCY = value end})
@@ -206,6 +207,7 @@ LevelUp =
 
 function LevelUp:Init()
     self.Enabled = Menu.AutoLevelUp.Enabled
+    self.StartAt = Menu.AutoLevelUp.StartAt
     self.SkillOrderMenu = Menu.SkillOrder
     
     local skillOrders = Data.SKILL_ORDERS[myHero.charName:lower()]
@@ -230,6 +232,10 @@ function LevelUp:Tick()
     local levelData = myHero.levelData
     
     if levelData.lvlPts <= 0 then
+        return
+    end
+
+    if levelData.lvl < self.StartAt:Value() then
         return
     end
     
