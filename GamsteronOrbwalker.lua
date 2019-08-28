@@ -1,8 +1,8 @@
---0.10
+--0.11
 
 _G.SDK =
 {
-    Version = '0.10',
+    Version = '0.11',
     Load = {},
     Draw = {},
     Tick = {},
@@ -24,7 +24,7 @@ _G.SDK =
 local myHero, os, math, Game, Vector, Control, Draw, table, pairs, GetTickCount = myHero, os, math, Game, Vector, Control, Draw, table, pairs, GetTickCount
 
 -- local classes
-local Color, Menu, Action, Object, Target, Orbwalker, Item, Buff, Damage, Cursor, Health, Math, Data, Spell, Attack
+local Color, Menu, LevelUp, Action, Object, Target, Orbwalker, Item, Buff, Damage, Cursor, Health, Math, Data, Spell, Attack
 
 --OK
 Color =
@@ -157,6 +157,10 @@ function Menu:Init
     self.Main.Drawings:MenuElement({id = 'LastHittableMinions', name = 'Last Hittable Minions', value = true})
     self.Main.Drawings:MenuElement({id = 'SelectedTarget', name = 'Selected Target', value = true})
     
+    self.AutoLevelUp = self.Main:MenuElement({id = 'AutoLvlUp', name = 'Auto Level Up', type = MENU, leftIcon = "https://image.ibb.co/b3XCCa/N6p_VC84qnoo_Es_OCJ15dija_OIfi_Zw_Bi1t0z6_IDwczm_x_KO1_E_y9_NGaogv5jhj_QDx3_YRIF_w300.png"});
+    self.AutoLevelUp:MenuElement({id = 'Enabled', name = 'Enabled', value = false})
+    self.SkillOrder = self.AutoLevelUp:MenuElement({id = 'SkillOrder' .. myHero.charName, name = 'Skill Order', value = 2, drop = {myHero.charName .. ' Most Frequent', myHero.charName .. ' Highest Win'}})
+    
     self.Main:MenuElement({name = '', type = _G.SPACE, id = 'GeneralSpace'})
     self.Main:MenuElement({id = 'Latency', name = 'Super important ! ms from game ! latency/ping/ms', value = 50, min = 0, max = 120, step = 1, callback = function(value) _G.LATENCY = value end})
     self.Main:MenuElement({id = 'CursorDelay', name = 'Cursor Delay', value = 30, min = 30, max = 50, step = 5})
@@ -165,6 +169,138 @@ function Menu:Init
     self.Main:MenuElement({name = 'Version  ' .. SDK.Version, type = _G.SPACE, id = 'VersionSpaceB'})
     
     _G.LATENCY = self.Main.Latency:Value()
+end
+
+--OK
+LevelUp =
+{
+    SpellToKey =
+    {
+        [_Q] = HK_Q,
+        [_W] = HK_W,
+        [_E] = HK_E,
+        [_R] = HK_R,
+    },
+    
+    Level =
+    0,
+    
+    QCount =
+    0,
+    
+    WCount =
+    0,
+    
+    ECount =
+    0,
+    
+    RCount =
+    0,
+    
+    Enabled =
+    nil,
+    
+    Timer =
+    0,
+}
+
+function LevelUp:Init()
+    self.Enabled = Menu.AutoLevelUp.Enabled
+    self.SkillOrderMenu = Menu.SkillOrder
+    
+    local skillOrders = Data.SKILL_ORDERS[myHero.charName:lower()]
+    self.SkillOrder1 = skillOrders['MostFrequent']
+    self.SkillOrder2 = skillOrders['HighestWin']
+    self.CurrentOrder = self.SkillOrder2
+
+    table.insert(SDK.Tick, function()
+        self:Tick()
+    end)
+end
+
+function LevelUp:Tick()
+    if not self.Enabled:Value() then
+        return
+    end
+    
+    if Cursor.Step > 0 then
+        return
+    end
+    
+    local levelData = myHero.levelData
+    
+    if levelData.lvlPts <= 0 then
+        return
+    end
+    
+    if GetTickCount() < self.Timer then
+        return
+    end
+    self.Timer = GetTickCount() + math.random(500, 1000)
+    
+    if levelData.lvl > self.Level then
+        self.Level = levelData.lvl
+        if self.SkillOrderMenu:Value() == 1 then
+            self.CurrentOrder = self.SkillOrder1
+        else
+            self.CurrentOrder = self.SkillOrder2
+        end
+        self.QCount = 0
+        self.WCount = 0
+        self.ECount = 0
+        self.RCount = 0
+        for i = 1, self.Level do
+            local currentSpell = self.CurrentOrder[i]
+            if currentSpell == _Q then
+                self.QCount = self.QCount + 1
+            elseif currentSpell == _W then
+                self.WCount = self.WCount + 1
+            elseif currentSpell == _E then
+                self.ECount = self.ECount + 1
+            elseif currentSpell == _R then
+                self.RCount = self.RCount + 1
+            end
+        end
+    end
+    
+    local rData = myHero:GetSpellData(_R)
+    local rLevel = rData.level
+    if self.RCount > rLevel then
+        self:PressKeys(self.SpellToKey[_R])
+        self.RCount = self.RCount + 1
+        return
+    end
+    
+    local qData = myHero:GetSpellData(_Q)
+    local qLevel = qData.level
+    if self.QCount > qLevel then
+        self:PressKeys(self.SpellToKey[_Q])
+        self.QCount = self.QCount + 1
+        return
+    end
+    
+    local wData = myHero:GetSpellData(_W)
+    local wLevel = wData.level
+    if self.WCount > wLevel then
+        self:PressKeys(self.SpellToKey[_W])
+        self.WCount = self.WCount + 1
+        return
+    end
+    
+    local eData = myHero:GetSpellData(_E)
+    local eLevel = eData.level
+    if self.ECount > eLevel then
+        self:PressKeys(self.SpellToKey[_E])
+        self.ECount = self.ECount + 1
+        return
+    end
+end
+
+function LevelUp:PressKeys(spellKey)
+    Control.KeyDown(HK_LUS)
+    Control.KeyDown(spellKey)
+    Control.KeyUp(spellKey)
+    Control.KeyUp(HK_LUS)
 end
 
 --OK
@@ -2791,7 +2927,7 @@ function Health:OnTick()
             table.insert(self.EnemyWardsInAttackRange, obj)
         end
     end
-
+    
     -- ON ATTACK
     local timer = Game.Timer()
     for handle, obj in pairs(self.Handles) do
@@ -2897,7 +3033,7 @@ function Health:GetPrediction
             local c = 0
             for endTime, attack in pairs(attacks) do
                 if attack.Target == handle then
-
+                    
                     local speed, startT, flyT, endT, damage
                     speed = attack.Speed
                     startT = attack.StartTime
@@ -2939,7 +3075,7 @@ function Health:LocalGetPrediction
     health = self.TargetsHealth[handle]
     
     local handles = {}
-
+    
     for attackerHandle, attacks in pairs(self.ActiveAttacks) do
         local attacker = self.Handles[attackerHandle]
         if attacker then
@@ -2963,7 +3099,7 @@ function Health:LocalGetPrediction
                     if endT > 0 and endT < time then
                         
                         handles[attackerHandle] = true
-
+                        
                         -- damage
                         if self.AttackersDamage[attackerHandle] == nil then
                             self.AttackersDamage[attackerHandle] = {}
@@ -2996,7 +3132,7 @@ function Health:LocalGetPrediction
     
     -- laneClear
     for attackerHandle, obj in pairs(self.AllyMinionsHandles) do
-
+        
         if handles[attackerHandle] == nil then
             local aaData = obj.attackData
             local isMoving = obj.pathing.hasMovePath
@@ -3908,7 +4044,1606 @@ Data =
         end,
     },
     
-    --9.13.1
+    SKILL_ORDERS =
+    {
+        ['aatrox'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _E, _W, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _E, _Q, _W, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+        },
+        ['ahri'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _E, _W, _Q, _Q, _R, _Q, _W, _Q, _W, _R, _W, _W, _E, _E, _R, _E, _E,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _W, _E, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+        },
+        ['akali'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _W, _E, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _W, _E, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+        },
+        ['alistar'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _W, _E, _Q, _Q, _R, _Q, _W, _Q, _W, _R, _W, _W, _E, _E, _R, _E, _E,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _W, _E, _W, _W, _R, _W, _Q, _W, _Q, _R, _Q, _Q, _E, _E, _R, _E, _E,
+            },
+        },
+        ['amumu'] =
+        {
+            ['MostFrequent'] =
+            {
+                _W, _E, _Q, _E, _E, _R, _E, _Q, _E, _Q, _R, _Q, _Q, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _W, _E, _Q, _W, _W, _R, _W, _Q, _W, _Q, _R, _Q, _Q, _E, _E, _R, _E, _E,
+            },
+        },
+        ['anivia'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _E, _E, _W, _E, _R, _E, _Q, _E, _Q, _R, _Q, _Q, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _E, _E, _W, _E, _R, _E, _Q, _E, _Q, _R, _Q, _Q, _W, _W, _R, _W, _W,
+            },
+        },
+        ['annie'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _W, _E, _Q, _Q, _R, _Q, _W, _Q, _W, _R, _W, _W, _E, _E, _R, _E, _E,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _W, _Q, _E, _Q, _R, _Q, _W, _Q, _W, _R, _W, _W, _E, _E, _R, _E, _E,
+            },
+        },
+        ['ashe'] =
+        {
+            ['MostFrequent'] =
+            {
+                _W, _Q, _E, _W, _W, _R, _W, _Q, _W, _Q, _R, _Q, _Q, _E, _E, _R, _E, _E,
+            },
+            ['HighestWin'] =
+            {
+                _W, _Q, _W, _Q, _W, _R, _W, _E, _W, _Q, _R, _Q, _Q, _E, _E, _R, _E, _E,
+            },
+        },
+        ['aurelionsol'] =
+        {
+            ['MostFrequent'] =
+            {
+                _W, _Q, _E, _W, _W, _R, _W, _Q, _W, _Q, _R, _Q, _Q, _E, _E, _R, _E, _E,
+            },
+            ['HighestWin'] =
+            {
+                _W, _Q, _E, _W, _W, _R, _W, _E, _W, _Q, _R, _Q, _Q, _Q, _E, _R, _E, _E,
+            },
+        },
+        ['azir'] =
+        {
+            ['MostFrequent'] =
+            {
+                _W, _Q, _E, _Q, _Q, _R, _Q, _W, _Q, _W, _R, _W, _W, _E, _E, _R, _E, _E,
+            },
+            ['HighestWin'] =
+            {
+                _W, _Q, _E, _Q, _Q, _R, _Q, _W, _Q, _W, _R, _W, _W, _E, _E, _R, _E, _E,
+            },
+        },
+        ['bard'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _W, _E, _Q, _Q, _R, _Q, _W, _Q, _W, _R, _W, _W, _E, _E, _R, _E, _E,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _W, _E, _Q, _Q, _R, _Q, _W, _Q, _W, _R, _W, _W, _E, _E, _R, _E, _E,
+            },
+        },
+        ['blitzcrank'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _E, _W, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _E, _Q, _W, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+        },
+        ['brand'] =
+        {
+            ['MostFrequent'] =
+            {
+                _W, _Q, _E, _W, _W, _R, _W, _Q, _W, _Q, _R, _Q, _Q, _E, _E, _R, _E, _E,
+            },
+            ['HighestWin'] =
+            {
+                _W, _Q, _E, _W, _W, _R, _W, _Q, _W, _Q, _R, _Q, _Q, _E, _E, _R, _E, _E,
+            },
+        },
+        ['braum'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _E, _W, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _E, _W, _E, _E, _R, _E, _Q, _E, _Q, _R, _Q, _Q, _W, _W, _R, _W, _W,
+            },
+        },
+        ['caitlyn'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _W, _E, _Q, _Q, _R, _Q, _W, _Q, _W, _R, _W, _W, _E, _E, _R, _E, _E,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _W, _E, _Q, _Q, _R, _W, _W, _W, _W, _R, _Q, _Q, _E, _E, _R, _E, _E,
+            },
+        },
+        ['camille'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _E, _W, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _E, _W, _E, _E, _R, _E, _Q, _E, _Q, _R, _Q, _Q, _W, _W, _R, _W, _W,
+            },
+        },
+        ['cassiopeia'] =
+        {
+            ['MostFrequent'] =
+            {
+                _E, _Q, _W, _E, _E, _R, _E, _Q, _E, _Q, _R, _Q, _Q, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _E, _Q, _E, _W, _E, _R, _E, _Q, _E, _Q, _R, _Q, _Q, _W, _W, _R, _W, _W,
+            },
+        },
+        ['chogath'] =
+        {
+            ['MostFrequent'] =
+            {
+                _E, _Q, _W, _E, _E, _R, _E, _Q, _E, _Q, _R, _Q, _Q, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _E, _Q, _W, _E, _E, _R, _E, _W, _E, _W, _R, _W, _W, _Q, _Q, _R, _Q, _Q,
+            },
+        },
+        ['corki'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _E, _W, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _E, _W, _Q, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+        },
+        ['darius'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _E, _W, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _E, _W, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+        },
+        ['diana'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _W, _E, _Q, _Q, _R, _Q, _W, _Q, _W, _R, _W, _W, _E, _E, _R, _E, _E,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _W, _Q, _E, _Q, _R, _Q, _W, _Q, _W, _R, _W, _W, _E, _E, _R, _E, _E,
+            },
+        },
+        ['draven'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _W, _E, _Q, _Q, _R, _Q, _W, _Q, _W, _R, _W, _W, _E, _E, _R, _E, _E,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _W, _Q, _E, _Q, _R, _Q, _W, _Q, _W, _R, _W, _W, _E, _E, _R, _E, _E,
+            },
+        },
+        ['drmundo'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _E, _W, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _E, _W, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+        },
+        ['ekko'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _E, _W, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _E, _Q, _W, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+        },
+        ['elise'] =
+        {
+            ['MostFrequent'] =
+            {
+                _W, _Q, _E, _Q, _Q, _R, _Q, _W, _Q, _W, _R, _W, _W, _E, _E, _R, _E, _E,
+            },
+            ['HighestWin'] =
+            {
+                _E, _Q, _W, _Q, _Q, _R, _Q, _W, _Q, _W, _R, _W, _W, _E, _E, _R, _E, _E,
+            },
+        },
+        ['evelynn'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _W, _E, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _W, _Q, _E, _Q, _R, _Q, _W, _Q, _W, _R, _W, _W, _E, _E, _R, _E, _E,
+            },
+        },
+        ['ezreal'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _E, _W, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _E, _Q, _W, _Q, _R, _Q, _E, _E, _Q, _E, _R, _E, _W, _W, _W, _R, _W,
+            },
+        },
+        ['fiddlesticks'] =
+        {
+            ['MostFrequent'] =
+            {
+                _E, _Q, _W, _E, _E, _R, _E, _Q, _E, _Q, _R, _Q, _Q, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _E, _Q, _Q, _W, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+        },
+        ['fiora'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _W, _E, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _W, _E, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+        },
+        ['fizz'] =
+        {
+            ['MostFrequent'] =
+            {
+                _E, _W, _Q, _E, _E, _R, _E, _W, _E, _W, _R, _W, _W, _Q, _Q, _R, _Q, _Q,
+            },
+            ['HighestWin'] =
+            {
+                _E, _W, _Q, _W, _W, _R, _W, _E, _W, _E, _R, _E, _E, _Q, _Q, _R, _Q, _Q,
+            },
+        },
+        ['galio'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _E, _W, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _E, _W, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+        },
+        ['gangplank'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _E, _W, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _E, _Q, _W, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+        },
+        ['garen'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _E, _W, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _E, _W, _Q, _E, _R, _E, _E, _E, _Q, _R, _Q, _Q, _W, _W, _R, _W, _W,
+            },
+        },
+        ['gnar'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _W, _E, _Q, _Q, _R, _Q, _W, _Q, _W, _R, _W, _W, _E, _E, _R, _E, _E,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _W, _E, _Q, _Q, _R, _Q, _W, _Q, _W, _R, _W, _W, _E, _E, _R, _E, _E,
+            },
+        },
+        ['gragas'] =
+        {
+            ['MostFrequent'] =
+            {
+                _W, _Q, _E, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _E, _W, _Q, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+        },
+        ['graves'] =
+        {
+            ['MostFrequent'] =
+            {
+                _E, _Q, _W, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _E, _Q, _Q, _W, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+        },
+        ['hecarim'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _W, _E, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _W, _E, _E, _Q, _R, _Q, _Q, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+        },
+        ['heimerdinger'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _E, _W, _W, _W, _R, _W, _Q, _W, _Q, _R, _Q, _Q, _E, _E, _R, _E, _E,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _E, _W, _W, _W, _R, _W, _Q, _W, _Q, _R, _Q, _Q, _E, _E, _R, _E, _E,
+            },
+        },
+        ['illaoi'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _W, _E, _E, _E, _R, _E, _Q, _E, _Q, _R, _Q, _Q, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _W, _E, _Q, _E, _E, _R, _E, _Q, _E, _Q, _R, _Q, _Q, _W, _W, _W, _R, _W,
+            },
+        },
+        ['irelia'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _E, _W, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _E, _Q, _W, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+        },
+        ['ivern'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _E, _W, _E, _E, _R, _E, _Q, _E, _Q, _R, _Q, _Q, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _E, _E, _W, _E, _R, _E, _Q, _E, _Q, _R, _Q, _Q, _W, _W, _R, _W, _W,
+            },
+        },
+        ['janna'] =
+        {
+            ['MostFrequent'] =
+            {
+                _W, _E, _Q, _W, _W, _R, _W, _E, _W, _E, _R, _E, _E, _Q, _Q, _R, _Q, _Q,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _W, _E, _E, _E, _R, _E, _W, _E, _W, _R, _W, _W, _Q, _Q, _R, _Q, _Q,
+            },
+        },
+        ['jarvaniv'] =
+        {
+            ['MostFrequent'] =
+            {
+                _E, _Q, _W, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _E, _Q, _Q, _E, _W, _R, _Q, _Q, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+        },
+        ['jax'] =
+        {
+            ['MostFrequent'] =
+            {
+                _E, _Q, _W, _W, _W, _R, _W, _Q, _W, _Q, _R, _Q, _Q, _E, _E, _R, _E, _E,
+            },
+            ['HighestWin'] =
+            {
+                _W, _Q, _E, _W, _W, _R, _W, _Q, _W, _Q, _R, _Q, _Q, _E, _E, _R, _E, _E,
+            },
+        },
+        ['jayce'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _E, _W, _Q, _Q, _W, _Q, _W, _Q, _W, _Q, _W, _W, _E, _E, _E, _E, _E,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _E, _Q, _W, _Q, _W, _Q, _W, _Q, _W, _Q, _W, _W, _E, _E, _E, _E, _E,
+            },
+        },
+        ['jhin'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _W, _E, _Q, _Q, _R, _Q, _W, _Q, _W, _R, _W, _W, _E, _E, _R, _E, _E,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _W, _Q, _W, _Q, _R, _Q, _E, _Q, _W, _R, _W, _W, _E, _E, _R, _E, _E,
+            },
+        },
+        ['jinx'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _W, _E, _Q, _Q, _R, _Q, _W, _Q, _W, _R, _W, _W, _E, _E, _R, _E, _E,
+            },
+            ['HighestWin'] =
+            {
+                _E, _Q, _W, _Q, _Q, _R, _Q, _W, _Q, _W, _R, _W, _W, _E, _E, _R, _E, _E,
+            },
+        },
+        ['kaisa'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _W, _E, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _W, _Q, _E, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+        },
+        ['kalista'] =
+        {
+            ['MostFrequent'] =
+            {
+                _E, _Q, _W, _E, _E, _R, _E, _Q, _E, _Q, _R, _Q, _Q, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _E, _Q, _E, _W, _E, _R, _E, _Q, _E, _Q, _R, _Q, _Q, _W, _W, _R, _W, _W,
+            },
+        },
+        ['karma'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _E, _W, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _W, _E, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+        },
+        ['karthus'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _E, _Q, _W, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _E, _Q, _W, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+        },
+        ['kassadin'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _W, _E, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _W, _E, _E, _E, _R, _E, _Q, _E, _Q, _R, _Q, _Q, _W, _W, _R, _W, _W,
+            },
+        },
+        ['katarina'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _E, _W, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _E, _W, _Q, _Q, _R, _E, _E, _E, _E, _R, _Q, _Q, _W, _W, _R, _W, _W,
+            },
+        },
+        ['kayle'] =
+        {
+            ['MostFrequent'] =
+            {
+                _E, _Q, _W, _E, _E, _R, _E, _Q, _E, _Q, _R, _Q, _Q, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _E, _W, _Q, _E, _E, _R, _E, _Q, _E, _Q, _R, _Q, _Q, _W, _W, _R, _W, _W,
+            },
+        },
+        ['kayn'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _W, _E, _Q, _Q, _R, _Q, _W, _Q, _W, _R, _W, _W, _E, _E, _R, _E, _E,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _E, _W, _Q, _Q, _R, _W, _W, _W, _W, _R, _Q, _Q, _E, _E, _R, _E, _E,
+            },
+        },
+        ['kennen'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _W, _E, _Q, _Q, _R, _Q, _W, _Q, _W, _R, _W, _W, _E, _E, _R, _E, _E,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _E, _W, _Q, _Q, _R, _Q, _W, _Q, _W, _R, _W, _W, _E, _E, _R, _E, _E,
+            },
+        },
+        ['khazix'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _W, _E, _Q, _Q, _R, _Q, _W, _Q, _W, _R, _W, _W, _E, _E, _R, _E, _E,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _W, _E, _W, _W, _R, _W, _E, _W, _E, _R, _E, _E, _Q, _Q, _R, _Q, _Q,
+            },
+        },
+        ['kindred'] =
+        {
+            ['MostFrequent'] =
+            {
+                _W, _Q, _E, _Q, _Q, _R, _Q, _W, _Q, _W, _R, _W, _W, _E, _E, _R, _E, _E,
+            },
+            ['HighestWin'] =
+            {
+                _W, _Q, _E, _W, _Q, _R, _Q, _Q, _Q, _E, _R, _E, _E, _E, _W, _R, _W, _W,
+            },
+        },
+        ['kled'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _W, _E, _Q, _Q, _R, _Q, _W, _Q, _W, _R, _W, _W, _E, _E, _R, _E, _E,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _E, _W, _Q, _Q, _R, _Q, _W, _Q, _W, _R, _W, _W, _E, _E, _R, _E, _E,
+            },
+        },
+        ['kogmaw'] =
+        {
+            ['MostFrequent'] =
+            {
+                _W, _Q, _E, _W, _W, _R, _W, _Q, _W, _Q, _R, _Q, _Q, _E, _E, _R, _E, _E,
+            },
+            ['HighestWin'] =
+            {
+                _W, _Q, _W, _E, _W, _R, _W, _Q, _W, _Q, _R, _Q, _Q, _E, _E, _R, _E, _E,
+            },
+        },
+        ['leblanc'] =
+        {
+            ['MostFrequent'] =
+            {
+                _W, _Q, _E, _W, _W, _R, _W, _Q, _W, _Q, _R, _Q, _Q, _E, _E, _R, _E, _E,
+            },
+            ['HighestWin'] =
+            {
+                _E, _W, _Q, _W, _W, _R, _W, _Q, _W, _Q, _R, _Q, _Q, _E, _E, _R, _E, _E,
+            },
+        },
+        ['leesin'] =
+        {
+            ['MostFrequent'] =
+            {
+                _W, _Q, _E, _Q, _Q, _R, _Q, _W, _Q, _W, _R, _W, _W, _E, _E, _R, _E, _E,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _W, _E, _W, _Q, _R, _Q, _Q, _Q, _W, _R, _W, _W, _E, _E, _R, _E, _E,
+            },
+        },
+        ['leona'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _E, _W, _W, _W, _R, _W, _E, _W, _E, _R, _E, _E, _Q, _Q, _R, _Q, _Q,
+            },
+            ['HighestWin'] =
+            {
+                _E, _Q, _W, _W, _W, _R, _W, _E, _W, _E, _R, _E, _E, _Q, _Q, _R, _Q, _Q,
+            },
+        },
+        ['lissandra'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _W, _E, _Q, _Q, _R, _Q, _W, _Q, _W, _R, _W, _W, _E, _E, _R, _E, _E,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _W, _E, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+        },
+        ['lucian'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _E, _W, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _E, _W, _Q, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+        },
+        ['lulu'] =
+        {
+            ['MostFrequent'] =
+            {
+                _E, _Q, _W, _E, _E, _R, _E, _W, _E, _W, _R, _W, _W, _Q, _Q, _R, _Q, _Q,
+            },
+            ['HighestWin'] =
+            {
+                _E, _Q, _W, _W, _W, _R, _W, _E, _W, _E, _R, _E, _E, _Q, _Q, _R, _Q, _Q,
+            },
+        },
+        ['lux'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _E, _W, _E, _E, _R, _E, _Q, _E, _Q, _R, _Q, _Q, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _E, _W, _W, _W, _R, _W, _E, _W, _E, _R, _E, _E, _Q, _Q, _R, _Q, _Q,
+            },
+        },
+        ['malphite'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _E, _W, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _W, _E, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+        },
+        ['malzahar'] =
+        {
+            ['MostFrequent'] =
+            {
+                _E, _W, _Q, _E, _E, _R, _E, _Q, _E, _Q, _R, _Q, _Q, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _E, _W, _Q, _E, _E, _R, _E, _Q, _E, _Q, _R, _Q, _Q, _W, _W, _R, _W, _W,
+            },
+        },
+        ['maokai'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _W, _E, _Q, _Q, _R, _Q, _W, _Q, _W, _R, _W, _W, _E, _E, _R, _E, _E,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _W, _E, _Q, _Q, _R, _Q, _W, _Q, _W, _R, _W, _W, _E, _E, _R, _E, _E,
+            },
+        },
+        ['masteryi'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _E, _W, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _E, _Q, _W, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+        },
+        ['missfortune'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _W, _E, _Q, _Q, _R, _Q, _W, _Q, _W, _R, _W, _W, _E, _E, _R, _E, _E,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _W, _Q, _E, _Q, _R, _Q, _W, _Q, _W, _R, _W, _W, _E, _E, _R, _E, _E,
+            },
+        },
+        ['monkeyking'] =
+        {
+            ['MostFrequent'] =
+            {
+                _E, _W, _Q, _E, _E, _R, _E, _Q, _E, _Q, _R, _Q, _Q, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _E, _W, _Q, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+        },
+        ['mordekaiser'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _E, _W, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _E, _Q, _W, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+        },
+        ['morgana'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _W, _E, _Q, _Q, _R, _Q, _W, _Q, _W, _R, _W, _W, _E, _E, _R, _E, _E,
+            },
+            ['HighestWin'] =
+            {
+                _W, _Q, _E, _W, _W, _R, _W, _Q, _W, _Q, _R, _Q, _Q, _E, _E, _R, _E, _E,
+            },
+        },
+        ['nami'] =
+        {
+            ['MostFrequent'] =
+            {
+                _W, _E, _Q, _W, _W, _R, _W, _E, _W, _E, _R, _E, _E, _Q, _Q, _R, _Q, _Q,
+            },
+            ['HighestWin'] =
+            {
+                _W, _E, _Q, _W, _W, _R, _W, _E, _W, _E, _R, _E, _E, _Q, _Q, _R, _Q, _Q,
+            },
+        },
+        ['nasus'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _E, _W, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _W, _E, _Q, _Q, _R, _Q, _W, _Q, _W, _R, _W, _W, _E, _E, _R, _E, _E,
+            },
+        },
+        ['nautilus'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _W, _E, _Q, _Q, _R, _Q, _W, _Q, _W, _R, _W, _W, _E, _E, _R, _E, _E,
+            },
+            ['HighestWin'] =
+            {
+                _E, _Q, _W, _E, _E, _R, _E, _W, _E, _W, _R, _W, _W, _Q, _Q, _R, _Q, _Q,
+            },
+        },
+        ['neeko'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _E, _W, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _W, _Q, _E, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+        },
+        ['nidalee'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _W, _E, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _W, _E, _E, _Q, _R, _Q, _Q, _Q, _W, _R, _W, _W, _E, _W, _R, _E, _E,
+            },
+        },
+        ['nocturne'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _E, _W, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _W, _E, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+        },
+        ['nunu'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _W, _E, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _W, _Q, _E, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+        },
+        ['olaf'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _W, _E, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _W, _Q, _E, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+        },
+        ['orianna'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _W, _E, _Q, _Q, _R, _Q, _W, _Q, _W, _R, _W, _W, _E, _E, _R, _E, _E,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _E, _W, _Q, _Q, _R, _Q, _W, _Q, _W, _R, _W, _W, _E, _E, _R, _E, _E,
+            },
+        },
+        ['ornn'] =
+        {
+            ['MostFrequent'] =
+            {
+                _W, _Q, _E, _W, _W, _R, _W, _Q, _W, _Q, _R, _Q, _Q, _E, _E, _R, _E, _E,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _W, _E, _W, _W, _R, _W, _Q, _W, _Q, _R, _Q, _Q, _E, _E, _R, _E, _E,
+            },
+        },
+        ['pantheon'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _W, _E, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _W, _Q, _E, _Q, _R, _Q, _W, _Q, _W, _R, _W, _W, _E, _E, _R, _E, _E,
+            },
+        },
+        ['poppy'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _E, _W, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _E, _Q, _W, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+        },
+        ['pyke'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _E, _W, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _E, _W, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+        },
+        ['qiyana'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _W, _E, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _W, _Q, _E, _Q, _Q, _R, _Q, _W, _Q, _W, _R, _W, _W, _E, _E, _R, _E, _E,
+            },
+        },
+        ['quinn'] =
+        {
+            ['MostFrequent'] =
+            {
+                _E, _Q, _W, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _E, _Q, _W, _W, _W, _R, _W, _Q, _W, _Q, _R, _Q, _Q, _E, _E, _R, _E, _E,
+            },
+        },
+        ['rakan'] =
+        {
+            ['MostFrequent'] =
+            {
+                _W, _E, _Q, _W, _W, _R, _W, _E, _W, _E, _R, _E, _E, _Q, _Q, _R, _Q, _Q,
+            },
+            ['HighestWin'] =
+            {
+                _W, _Q, _E, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+        },
+        ['rammus'] =
+        {
+            ['MostFrequent'] =
+            {
+                _W, _Q, _E, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _W, _Q, _E, _W, _Q, _R, _W, _Q, _W, _E, _R, _W, _E, _E, _E, _R, _Q, _Q,
+            },
+        },
+        ['reksai'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _W, _E, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _W, _E, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+        },
+        ['renekton'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _E, _W, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _W, _Q, _E, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+        },
+        ['rengar'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _W, _E, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _W, _E, _W, _W, _R, _W, _E, _W, _E, _R, _E, _E, _Q, _Q, _R, _Q, _Q,
+            },
+        },
+        ['riven'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _E, _W, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _W, _E, _Q, _Q, _R, _Q, _W, _Q, _E, _R, _E, _E, _E, _W, _R, _W, _W,
+            },
+        },
+        ['rumble'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _E, _W, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _W, _E, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+        },
+        ['ryze'] =
+        {
+            ['MostFrequent'] =
+            {
+                _E, _Q, _W, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _W, _Q, _E, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+        },
+        ['sejuani'] =
+        {
+            ['MostFrequent'] =
+            {
+                _E, _W, _Q, _W, _W, _R, _W, _Q, _W, _Q, _R, _Q, _Q, _E, _E, _R, _E, _E,
+            },
+            ['HighestWin'] =
+            {
+                _E, _W, _Q, _E, _E, _R, _W, _E, _E, _Q, _R, _W, _W, _W, _Q, _R, _Q, _Q,
+            },
+        },
+        ['shaco'] =
+        {
+            ['MostFrequent'] =
+            {
+                _W, _Q, _E, _Q, _Q, _R, _E, _E, _E, _E, _R, _Q, _Q, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _W, _Q, _E, _E, _Q, _R, _E, _E, _E, _Q, _R, _Q, _Q, _W, _W, _R, _W, _W,
+            },
+        },
+        ['shen'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _E, _W, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _E, _Q, _W, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+        },
+        ['shyvana'] =
+        {
+            ['MostFrequent'] =
+            {
+                _E, _W, _Q, _E, _E, _R, _E, _W, _E, _W, _R, _W, _W, _Q, _Q, _R, _Q, _Q,
+            },
+            ['HighestWin'] =
+            {
+                _E, _W, _Q, _W, _W, _R, _W, _E, _W, _E, _R, _E, _E, _Q, _Q, _R, _Q, _Q,
+            },
+        },
+        ['singed'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _E, _W, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _E, _Q, _W, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+        },
+        ['sion'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _W, _E, _Q, _Q, _R, _Q, _W, _Q, _W, _R, _W, _W, _E, _E, _R, _E, _E,
+            },
+            ['HighestWin'] =
+            {
+                _W, _Q, _E, _Q, _Q, _R, _Q, _W, _Q, _W, _R, _W, _W, _E, _E, _R, _E, _E,
+            },
+        },
+        ['sivir'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _E, _W, _Q, _Q, _R, _Q, _W, _Q, _W, _R, _W, _W, _E, _E, _R, _E, _E,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _W, _Q, _E, _Q, _R, _Q, _W, _Q, _W, _R, _W, _W, _E, _E, _R, _E, _E,
+            },
+        },
+        ['skarner'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _E, _W, _Q, _Q, _R, _Q, _W, _Q, _W, _R, _W, _W, _E, _E, _R, _E, _E,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _E, _W, _Q, _Q, _R, _Q, _W, _Q, _W, _R, _W, _W, _E, _E, _R, _E, _E,
+            },
+        },
+        ['sona'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _W, _E, _Q, _Q, _R, _Q, _W, _Q, _W, _R, _W, _W, _E, _E, _R, _E, _E,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _W, _Q, _E, _Q, _R, _Q, _W, _Q, _W, _R, _W, _W, _E, _E, _R, _E, _E,
+            },
+        },
+        ['soraka'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _W, _E, _W, _W, _R, _W, _Q, _W, _Q, _R, _Q, _Q, _E, _E, _R, _E, _E,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _W, _E, _Q, _Q, _R, _Q, _W, _Q, _W, _R, _W, _W, _E, _E, _R, _E, _E,
+            },
+        },
+        ['swain'] =
+        {
+            ['MostFrequent'] =
+            {
+                _E, _Q, _W, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _E, _W, _Q, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+        },
+        ['sylas'] =
+        {
+            ['MostFrequent'] =
+            {
+                _E, _Q, _W, _Q, _Q, _R, _Q, _W, _Q, _W, _R, _W, _W, _E, _E, _R, _E, _E,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _E, _W, _Q, _W, _R, _Q, _Q, _Q, _W, _R, _E, _W, _W, _E, _R, _E, _E,
+            },
+        },
+        ['syndra'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _E, _W, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _W, _E, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+        },
+        ['tahmkench'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _W, _E, _Q, _Q, _R, _Q, _W, _Q, _W, _R, _W, _W, _E, _E, _R, _E, _E,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _W, _E, _Q, _Q, _R, _Q, _W, _Q, _W, _R, _W, _W, _E, _E, _R, _E, _E,
+            },
+        },
+        ['taliyah'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _E, _W, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _E, _W, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+        },
+        ['talon'] =
+        {
+            ['MostFrequent'] =
+            {
+                _W, _Q, _E, _W, _W, _R, _W, _Q, _W, _Q, _R, _Q, _Q, _E, _E, _R, _E, _E,
+            },
+            ['HighestWin'] =
+            {
+                _W, _Q, _E, _W, _Q, _R, _Q, _Q, _Q, _W, _R, _W, _W, _E, _E, _R, _E, _E,
+            },
+        },
+        ['taric'] =
+        {
+            ['MostFrequent'] =
+            {
+                _E, _W, _Q, _E, _E, _R, _E, _Q, _E, _Q, _R, _Q, _Q, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _E, _W, _Q, _Q, _Q, _R, _Q, _W, _Q, _W, _R, _W, _W, _E, _E, _R, _E, _E,
+            },
+        },
+        ['teemo'] =
+        {
+            ['MostFrequent'] =
+            {
+                _E, _Q, _W, _E, _E, _R, _E, _Q, _E, _Q, _R, _Q, _Q, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _E, _Q, _E, _W, _E, _R, _E, _Q, _E, _Q, _R, _Q, _Q, _W, _W, _R, _W, _W,
+            },
+        },
+        ['thresh'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _E, _W, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _E, _Q, _W, _Q, _Q, _R, _Q, _W, _Q, _W, _R, _W, _W, _E, _E, _R, _E, _E,
+            },
+        },
+        ['tristana'] =
+        {
+            ['MostFrequent'] =
+            {
+                _E, _W, _Q, _E, _E, _R, _E, _Q, _E, _Q, _R, _Q, _Q, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _W, _E, _Q, _E, _E, _R, _E, _Q, _E, _Q, _R, _Q, _Q, _W, _W, _R, _W, _W,
+            },
+        },
+        ['trundle'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _W, _E, _Q, _Q, _R, _Q, _W, _Q, _W, _R, _W, _W, _E, _E, _R, _E, _E,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _W, _E, _Q, _Q, _R, _Q, _W, _Q, _W, _R, _W, _W, _E, _E, _R, _E, _E,
+            },
+        },
+        ['tryndamere'] =
+        {
+            ['MostFrequent'] =
+            {
+                _E, _Q, _Q, _W, _Q, _R, _Q, _E, _Q, _E, _E, _E, _W, _W, _W, _W, _R, _R,
+            },
+            ['HighestWin'] =
+            {
+                _E, _Q, _Q, _W, _Q, _R, _Q, _E, _Q, _E, _E, _E, _W, _W, _W, _W, _R, _R,
+            },
+        },
+        ['twistedfate'] =
+        {
+            ['MostFrequent'] =
+            {
+                _W, _Q, _E, _Q, _Q, _R, _Q, _W, _Q, _W, _R, _W, _W, _E, _E, _R, _E, _E,
+            },
+            ['HighestWin'] =
+            {
+                _W, _E, _Q, _Q, _Q, _R, _Q, _W, _Q, _W, _R, _W, _W, _E, _E, _R, _E, _E,
+            },
+        },
+        ['twitch'] =
+        {
+            ['MostFrequent'] =
+            {
+                _E, _W, _Q, _E, _E, _R, _E, _Q, _E, _Q, _R, _Q, _Q, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _E, _W, _E, _E, _R, _E, _Q, _E, _Q, _R, _Q, _Q, _W, _W, _R, _W, _W,
+            },
+        },
+        ['udyr'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _W, _E, _Q, _Q, _E, _Q, _E, _Q, _E, _E, _W, _W, _W, _W, _Q, _E, _W,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _E, _W, _Q, _Q, _E, _Q, _E, _Q, _E, _E, _W, _W, _W, _W, _Q, _E, _W,
+            },
+        },
+        ['urgot'] =
+        {
+            ['MostFrequent'] =
+            {
+                _W, _E, _Q, _W, _W, _R, _W, _E, _W, _E, _R, _E, _E, _Q, _Q, _R, _Q, _Q,
+            },
+            ['HighestWin'] =
+            {
+                _E, _W, _Q, _W, _W, _R, _W, _E, _W, _E, _R, _E, _E, _Q, _Q, _R, _Q, _Q,
+            },
+        },
+        ['varus'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _W, _E, _Q, _Q, _R, _Q, _W, _Q, _W, _R, _W, _W, _E, _E, _R, _E, _E,
+            },
+            ['HighestWin'] =
+            {
+                _E, _W, _Q, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+        },
+        ['vayne'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _W, _E, _W, _W, _R, _W, _Q, _W, _Q, _R, _Q, _Q, _E, _E, _R, _E, _E,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _W, _E, _W, _Q, _R, _W, _W, _W, _Q, _R, _Q, _Q, _E, _E, _R, _E, _E,
+            },
+        },
+        ['veigar'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _W, _E, _Q, _Q, _R, _Q, _W, _Q, _W, _R, _W, _W, _E, _E, _R, _E, _E,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _E, _Q, _W, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+        },
+        ['velkoz'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _W, _E, _Q, _Q, _R, _Q, _W, _Q, _W, _R, _W, _W, _E, _E, _R, _E, _E,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _W, _E, _Q, _Q, _R, _Q, _W, _Q, _W, _R, _W, _W, _E, _E, _R, _E, _E,
+            },
+        },
+        ['vi'] =
+        {
+            ['MostFrequent'] =
+            {
+                _W, _E, _Q, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _E, _W, _Q, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+        },
+        ['viktor'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _E, _W, _E, _E, _R, _E, _Q, _E, _Q, _R, _Q, _Q, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _E, _W, _E, _E, _R, _E, _Q, _E, _Q, _R, _Q, _Q, _W, _W, _R, _W, _W,
+            },
+        },
+        ['vladimir'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _E, _W, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _W, _Q, _E, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+        },
+        ['volibear'] =
+        {
+            ['MostFrequent'] =
+            {
+                _W, _E, _Q, _W, _W, _R, _W, _Q, _W, _Q, _R, _Q, _Q, _E, _E, _R, _E, _E,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _W, _E, _W, _W, _R, _W, _Q, _W, _Q, _R, _Q, _Q, _E, _E, _R, _E, _E,
+            },
+        },
+        ['warwick'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _W, _E, _W, _W, _R, _W, _Q, _W, _Q, _R, _Q, _Q, _E, _E, _R, _E, _E,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _W, _E, _W, _W, _R, _Q, _W, _W, _Q, _R, _Q, _Q, _E, _E, _R, _E, _E,
+            },
+        },
+        ['xayah'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _E, _W, _E, _E, _R, _E, _W, _E, _W, _R, _W, _W, _Q, _Q, _R, _Q, _Q,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _E, _W, _Q, _Q, _R, _Q, _W, _Q, _W, _R, _W, _W, _E, _E, _R, _E, _E,
+            },
+        },
+        ['xerath'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _W, _E, _Q, _Q, _R, _Q, _W, _Q, _W, _R, _W, _W, _E, _E, _R, _E, _E,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _E, _W, _Q, _Q, _R, _Q, _W, _Q, _W, _R, _W, _W, _E, _E, _R, _E, _E,
+            },
+        },
+        ['xinzhao'] =
+        {
+            ['MostFrequent'] =
+            {
+                _E, _Q, _W, _W, _W, _R, _W, _E, _W, _E, _R, _E, _E, _Q, _Q, _R, _Q, _Q,
+            },
+            ['HighestWin'] =
+            {
+                _E, _Q, _W, _E, _E, _R, _E, _W, _E, _W, _R, _W, _W, _Q, _Q, _R, _Q, _Q,
+            },
+        },
+        ['yasuo'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _E, _W, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _E, _W, _Q, _Q, _R, _E, _E, _E, _E, _R, _Q, _Q, _W, _W, _R, _W, _W,
+            },
+        },
+        ['yorick'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _E, _W, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _E, _W, _Q, _Q, _R, _Q, _W, _Q, _W, _R, _W, _W, _E, _E, _R, _E, _E,
+            },
+        },
+        ['yuumi'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _E, _Q, _E, _Q, _R, _Q, _E, _Q, _E, _R, _Q, _E, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _E, _Q, _E, _Q, _R, _Q, _E, _Q, _E, _R, _Q, _E, _W, _W, _R, _W, _W,
+            },
+        },
+        ['zac'] =
+        {
+            ['MostFrequent'] =
+            {
+                _W, _Q, _E, _E, _E, _R, _E, _W, _E, _W, _R, _W, _W, _Q, _Q, _R, _Q, _Q,
+            },
+            ['HighestWin'] =
+            {
+                _W, _Q, _E, _E, _E, _R, _E, _W, _E, _W, _R, _W, _W, _Q, _Q, _R, _Q, _Q,
+            },
+        },
+        ['zed'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _E, _W, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _E, _W, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+        },
+        ['ziggs'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _E, _W, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _E, _Q, _W, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+        },
+        ['zilean'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _W, _E, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _E, _W, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+        },
+        ['zoe'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _E, _W, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _E, _Q, _W, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+        },
+        ['zyra'] =
+        {
+            ['MostFrequent'] =
+            {
+                _Q, _E, _W, _Q, _Q, _R, _Q, _E, _Q, _E, _R, _E, _E, _W, _W, _R, _W, _W,
+            },
+            ['HighestWin'] =
+            {
+                _Q, _W, _E, _E, _E, _R, _E, _Q, _E, _Q, _R, _Q, _Q, _W, _W, _R, _W, _W,
+            },
+        },
+    },
+    
+    --9.16.1
     HeroNames =
     {
         ['practicetool_targetdummy'] = true,
@@ -4059,7 +5794,7 @@ Data =
         ['zyra'] = true,
     },
     
-    --9.13.1
+    --9.16.1
     HeroPriorities =
     {
         ['aatrox'] = 3,
@@ -4209,7 +5944,7 @@ Data =
         ['zyra'] = 2,
     },
     
-    -- 9.13.1
+    -- 9.16.1
     HeroMelees =
     {
         ['aatrox'] = true,
@@ -5402,6 +7137,7 @@ end
 
 --OK
 Menu:Init()
+LevelUp:Init()
 Action:Init()
 Object:Init()
 Target:Init()
