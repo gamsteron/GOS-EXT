@@ -630,7 +630,7 @@ function LazyXerath:__init()
 	self.Q = { delay = 0.35, speed = math.huge, width = 145, range = 750 }
 	self.W = { delay = 0.5, speed = math.huge, width = 200, range = 1050 }
 	self.E = { delay = 0.25, speed = 2100, width = 80, range = 1050 }
-	self.R = { delay = 0.5, speed = math.huge, width = 200, range = 3520 }
+	self.R = { delay = 0.5, speed = math.huge, width = 200, range = 5000 }
 	self.range = 550
 	self.chargeQ = false
 	self.qTick = GetTickCount()
@@ -896,7 +896,7 @@ end
 
 function LazyXerath:useR()
 	if Game.CanUseSpell(_R) == 0 and self.chargeQ == false and castSpell.state == 0 then
-		local target = self:GetRTarget(1100,2200 + 1220*myHero:GetSpellData(_R).level)
+		local target = self:GetRTarget(1100,5000)
 		if target then
 			self:useRkill(target)
 			if ((self.firstRCast == true or self.chargeR ~= true) or (GetTickCount() - self.lastRtick > 500 + LazyMenu.Combo.R.targetChangeDelay:Value() and GetDistance(target.pos,self.R_target.pos) > 750) or (GetDistance(target.pos,self.R_target.pos) <= 850)) and target ~= self.R_target then
@@ -908,10 +908,10 @@ function LazyXerath:useR()
 					if target and not IsImmune(target) and (Game.Timer() - OnWaypoint(target).time > 0.05 and (Game.Timer() - OnWaypoint(target).time < 0.20 or Game.Timer() - OnWaypoint(target).time > 1.25) or IsImmobileTarget(target) == true or (self.firstRCast == true and OnVision(target).state == false) ) then
 						local rPred = GetPred(target,math.huge,0.45)
 						if rPred:ToScreen().onScreen then
-							CastSpell(HK_R,rPred,2200 + 1320*myHero:GetSpellData(_R).level,100)
+							CastSpell(HK_R,rPred,5000,100)
 							self.R_target = target
 						else
-							CastSpellMM(HK_R,rPred,2200 + 1320*myHero:GetSpellData(_R).level,100)
+							CastSpellMM(HK_R,rPred,5000,100)
 							self.R_target = target
 						end
 					end
@@ -1087,10 +1087,10 @@ function LazyXerath:startR(target)
 				local bluePred = GetPred(target,math.huge,0.25)
 				CastSpellMM(HK_ITEM_7,bluePred,4000,50)
 			else
-				CastSpell(HK_R,myHero.pos + Vector(myHero.pos,target.pos):Normalized() * math.random(500,800),2200 + 1320*myHero:GetSpellData(_R).level,50)
+				CastSpell(HK_R,myHero.pos + Vector(myHero.pos,target.pos):Normalized() * math.random(500,800),5000,50)
 			end
 		else
-			CastSpell(HK_R,myHero.pos + Vector(myHero.pos,target.pos):Normalized() * math.random(500,800),2200 + 1320*myHero:GetSpellData(_R).level,50)
+			CastSpell(HK_R,myHero.pos + Vector(myHero.pos,target.pos):Normalized() * math.random(500,800),5000,50)
 		end
 		self.R_target = target
 		self.firstRCast = true
@@ -1102,7 +1102,7 @@ function LazyXerath:useRkill(target)
 		local rDMG = CalcMagicalDamage(myHero,target,170+30*myHero:GetSpellData(_R).level + (myHero.ap*0.43))*(2+myHero:GetSpellData(_R).level - LazyMenu.Combo.R.safeR:Value())
 		if target.health + target.shieldAP + target.shieldAD < rDMG and CountAlliesInRange(target.pos,700) == 0 then
 			local delay =  math.floor((target.health + target.shieldAP + target.shieldAD)/(rDMG/(2+myHero:GetSpellData(_R).level))) * 0.8
-			if GetDistance(myHero.pos,target.pos) + target.ms*delay <= 2200 + 1320*myHero:GetSpellData(_R).level and not IsImmune(target) then
+			if GetDistance(myHero.pos,target.pos) + target.ms*delay <= 5000 and not IsImmune(target) then
 				self:startR(target)
 			end
 		end
@@ -1113,15 +1113,15 @@ function LazyXerath:useRonKey()
 	if LazyMenu.Combo.R.useRkey:Value() then
 		if self.chargeR == true and Game.CanUseSpell(_R) == 0 then
 			local target = GetTarget(500,"AP",mousePos)
-			if not target then target = GetTarget(2200 + 1320*myHero:GetSpellData(_R).level,"AP") end
+			if not target then target = GetTarget(5000,"AP") end
 			if target and not IsImmune(target) then
 				local rPred = GetPred(target,math.huge,0.45)
 				if rPred:ToScreen().onScreen then
-					CastSpell(HK_R,rPred,2200 + 1320*myHero:GetSpellData(_R).level,100)
+					CastSpell(HK_R,rPred,5000,100)
 					self.R_target = target
 					self.R_target_tick = GetTickCount()
 				else
-					CastSpellMM(HK_R,rPred,2200 + 1320*myHero:GetSpellData(_R).level,100)
+					CastSpellMM(HK_R,rPred,5000,100)
 					self.R_target = target
 					self.R_target_tick = GetTickCount()
 				end
