@@ -586,14 +586,14 @@ function Morgana:CreateMenu()
     Menu.qset:MenuElement({name = "Auto", id = "auto", type = _G.MENU})
     Menu.qset.auto:MenuElement({id = "enabled", name = "Enabled", value = true})
     Menu.qset.auto:MenuElement({name = "Use on:", id = "useon", type = _G.MENU})
-    SDKObject:OnEnemyHeroLoad(function(args) Menu.qset.auto.useon:MenuElement({id = args.CharName, name = args.CharName, value = true}) end)
+    SDKObject:OnEnemyHeroLoad(function(args) Menu.qset.auto.useon:MenuElement({id = args.charName, name = args.charName, value = true}) end)
     Menu.qset.auto:MenuElement({id = "hitchance", name = "Hitchance", value = 2, drop = {"Normal", "High", "Immobile"}})
     -- Combo / Harass
     Menu.qset:MenuElement({name = "Combo / Harass", id = "comhar", type = _G.MENU})
     Menu.qset.comhar:MenuElement({id = "combo", name = "Combo", value = true})
     Menu.qset.comhar:MenuElement({id = "harass", name = "Harass", value = false})
     Menu.qset.comhar:MenuElement({name = "Use on:", id = "useon", type = _G.MENU})
-    SDKObject:OnEnemyHeroLoad(function(args) Menu.qset.comhar.useon:MenuElement({id = args.CharName, name = args.CharName, value = true}) end)
+    SDKObject:OnEnemyHeroLoad(function(args) Menu.qset.comhar.useon:MenuElement({id = args.charName, name = args.charName, value = true}) end)
     Menu.qset.comhar:MenuElement({id = "hitchance", name = "Hitchance", value = 2, drop = {"Normal", "High", "Immobile"}})
     -- W
     Menu:MenuElement({name = "W settings", id = "wset", type = _G.MENU})
@@ -896,7 +896,7 @@ function Karthus:CreateMenu()
     Menu.qset:MenuElement({name = "Auto", id = "auto", type = _G.MENU})
     Menu.qset.auto:MenuElement({id = "enabled", name = "Enabled", value = true})
     Menu.qset.auto:MenuElement({name = "Use on:", id = "useon", type = _G.MENU})
-    SDKObject:OnEnemyHeroLoad(function(args) Menu.qset.auto.useon:MenuElement({id = args.CharName, name = args.CharName, value = true}) end)
+    SDKObject:OnEnemyHeroLoad(function(args) Menu.qset.auto.useon:MenuElement({id = args.charName, name = args.charName, value = true}) end)
     Menu.qset.auto:MenuElement({id = "hitchance", name = "Hitchance", value = 2, drop = {"normal", "high"}})
     -- Combo / Harass
     Menu.qset:MenuElement({name = "Combo / Harass", id = "comhar", type = _G.MENU})
@@ -1114,7 +1114,7 @@ function KogMaw:CreateMenu()
     Menu.rset.semirkog:MenuElement({name = "Check R stacks", id = "semistacks", value = false})
     Menu.rset.semirkog:MenuElement({name = "Only 0-40 % HP enemies", id = "semilow", value = false})
     Menu.rset.semirkog:MenuElement({name = "Use on:", id = "useon", type = _G.MENU})
-    SDKObject:OnEnemyHeroLoad(function(args) Menu.rset.semirkog.useon:MenuElement({id = args.CharName, name = args.CharName, value = true}) end)
+    SDKObject:OnEnemyHeroLoad(function(args) Menu.rset.semirkog.useon:MenuElement({id = args.charName, name = args.charName, value = true}) end)
     Menu.rset:MenuElement({id = "hitchance", name = "Hitchance", value = 2, drop = {"normal", "high"}})
 end
 
@@ -1306,8 +1306,8 @@ function Vayne:CreateMenu()
             ["Azir"] = true,
             ["Velkoz"] = true
         }
-        if SDKData.HeroMelees[args.CharName:lower()] and not notMelee[args.CharName] then
-            Menu.eset.useonmelee:MenuElement({id = args.CharName, name = args.CharName, value = true})
+        if SDKData.HeroMelees[args.charName:lower()] and not notMelee[args.charName] then
+            Menu.eset.useonmelee:MenuElement({id = args.charName, name = args.charName, value = true})
         end
     end)
     Menu.eset:MenuElement({id = "dash", name = "AntiDash - kha e, rangar r", value = true})
@@ -1315,7 +1315,7 @@ function Vayne:CreateMenu()
     Menu.eset:MenuElement({id = "combo", name = "Combo (Stun)", value = true})
     Menu.eset:MenuElement({id = "harass", name = "Harass (Stun)", value = false})
     Menu.eset:MenuElement({name = "Use on (Stun):", id = "useonstun", type = _G.MENU})
-    SDKObject:OnEnemyHeroLoad(function(args) Menu.eset.useonstun:MenuElement({id = args.CharName, name = args.CharName, value = true}) end)
+    SDKObject:OnEnemyHeroLoad(function(args) Menu.eset.useonstun:MenuElement({id = args.charName, name = args.charName, value = true}) end)
     --R
     Menu:MenuElement({name = "R settings", id = "rset", type = _G.MENU})
     Menu.rset:MenuElement({id = "qready", name = "Only if Q ready or almost ready", value = true})
@@ -1944,10 +1944,6 @@ function Ezreal:Tick()
         local key = Menu.mane.elol:Key()
         Control.KeyDown(key)
         Control.KeyUp(key)
-        Control.KeyDown(key)
-        Control.KeyUp(key)
-        Control.KeyDown(key)
-        Control.KeyUp(key)
         _G.ORB_NEXT_CONTROLL = Game.Timer() + 0.25
     end
     
@@ -1969,8 +1965,26 @@ function Ezreal:Tick()
     -- [ mana percent ]
     local manaPercent = 100 * myHero.mana / myHero.maxMana
     
+    -- [ use w ]
+    if SDKSpell:IsReady(_W, {q = 0.33, w = 0.5, e = 0.33, r = 1.13}) then
+        if (SDKOrbwalker.Modes[ORBWALKER_MODE_COMBO] and Menu.wset.combo:Value()) or (SDKOrbwalker.Modes[ORBWALKER_MODE_HARASS] and Menu.wset.harass:Value()) then
+            local WTarget
+            if AATarget then
+                WTarget = AATarget
+            else
+                WTarget = SDKTarget:GetTarget(AIO:GetEnemyHeroes(1000), 0)
+            end
+            AIO:Cast(HK_W, WTarget, self.WData, Menu.wset.hitchance:Value() + 1)
+        end
+    end
+    
     -- [ use q ]
-    if SDKSpell:IsReady(_Q, {q = 0.5, w = 0.33, e = 0.33, r = 1.13}) then
+    if not result and SDKSpell:IsReady(_Q, {q = 0.5, w = 0.33, e = 0.33, r = 1.13}) then
+        
+        -- stop Q if W ready
+        if SDKSpell:IsReady(_W, {q = 0.33, w = 0.5, e = 0.33, r = 1.13}) and (SDKOrbwalker.Modes[ORBWALKER_MODE_COMBO] or SDKOrbwalker.Modes[ORBWALKER_MODE_HARASS]) then
+            return
+        end
         
         -- [ combo / harass ]
         if (SDKOrbwalker.Modes[ORBWALKER_MODE_COMBO] and Menu.qset.combo:Value()) or (SDKOrbwalker.Modes[ORBWALKER_MODE_HARASS] and Menu.qset.harass:Value()) then
@@ -1988,19 +2002,6 @@ function Ezreal:Tick()
                 result = AIO:Cast(HK_Q, enemyHeroes[i], self.QData, Menu.autoq.hitchance:Value() + 1)
                 if result then break end
             end
-        end
-    end
-    
-    -- [ use w ]
-    if not result and SDKSpell:IsReady(_W, {q = 0.33, w = 0.5, e = 0.33, r = 1.13}) then
-        if (SDKOrbwalker.Modes[ORBWALKER_MODE_COMBO] and Menu.wset.combo:Value()) or (SDKOrbwalker.Modes[ORBWALKER_MODE_HARASS] and Menu.wset.harass:Value()) then
-            local WTarget
-            if AATarget then
-                WTarget = AATarget
-            else
-                WTarget = SDKTarget:GetTarget(AIO:GetEnemyHeroes(1000), 0)
-            end
-            AIO:Cast(HK_W, WTarget, self.WData, Menu.wset.hitchance:Value() + 1)
         end
     end
 end
@@ -2804,6 +2805,242 @@ function Jhin:CanMove
         return true
     end
     return false
+end
+
+class "Kaisa"
+
+function Kaisa:Menu()
+    self.KaisaMenu = MenuElement({type = MENU, id = "Kaisa", name = "[GoS-U] Kaisa"})
+    self.KaisaMenu:MenuElement({id = "Auto", name = "Auto", type = MENU})
+    self.KaisaMenu.Auto:MenuElement({id = "UseQ", name = "Use Q [Icathian Rain]", value = true})
+    self.KaisaMenu.Auto:MenuElement({id = "UseW", name = "Use W [Void Seeker]", value = true})
+    self.KaisaMenu.Auto:MenuElement({id = "MP", name = "Mana-Manager", value = 40, min = 0, max = 100, step = 5})
+
+    self.KaisaMenu:MenuElement({id = "Combo", name = "Combo", type = MENU})
+    self.KaisaMenu.Combo:MenuElement({id = "UseQ", name = "Use Q [Icathian Rain]", value = true})
+    self.KaisaMenu.Combo:MenuElement({id = "UseW", name = "Use W [Void Seeker]", value = true})
+    self.KaisaMenu.Combo:MenuElement({id = "UseE", name = "Use E [Supercharge]", value = true})
+
+    self.KaisaMenu:MenuElement({id = "Harass", name = "Harass", type = MENU})
+    self.KaisaMenu.Harass:MenuElement({id = "UseQ", name = "Use Q [Icathian Rain]", value = true})
+    self.KaisaMenu.Harass:MenuElement({id = "UseW", name = "Use W [Void Seeker]", value = true})
+    self.KaisaMenu.Harass:MenuElement({id = "UseE", name = "Use E [Supercharge]", value = true})
+    self.KaisaMenu.Harass:MenuElement({id = "MP", name = "Mana-Manager", value = 40, min = 0, max = 100, step = 5})
+
+    self.KaisaMenu:MenuElement({id = "KillSteal", name = "KillSteal", type = MENU})
+    self.KaisaMenu.KillSteal:MenuElement({id = "UseW", name = "Use W [Void Seeker]", value = true})
+
+    self.KaisaMenu:MenuElement({id = "LaneClear", name = "LaneClear", type = MENU})
+    self.KaisaMenu.LaneClear:MenuElement({id = "UseQ", name = "Use Q [Icathian Rain]", value = false})
+    self.KaisaMenu.LaneClear:MenuElement({id = "MP", name = "Mana-Manager", value = 40, min = 0, max = 100, step = 5})
+
+    self.KaisaMenu:MenuElement({id = "AntiGapcloser", name = "Anti-Gapcloser", type = MENU})
+    self.KaisaMenu.AntiGapcloser:MenuElement({id = "UseE", name = "Use E [Supercharge]", value = true})
+    self.KaisaMenu.AntiGapcloser:MenuElement({id = "Distance", name = "Distance: E", value = 300, min = 25, max = 500, step = 25})
+
+    self.KaisaMenu:MenuElement({id = "HitChance", name = "HitChance", type = MENU})
+    self.KaisaMenu.HitChance:MenuElement({id = "HPredHit", name = "HitChance: HPrediction", value = 1, min = 1, max = 5, step = 1})
+    self.KaisaMenu.HitChance:MenuElement({id = "TPredHit", name = "HitChance: TPrediction", value = 1, min = 0, max = 5, step = 1})
+
+    self.KaisaMenu:MenuElement({id = "Prediction", name = "Prediction", type = MENU})
+    self.KaisaMenu.Prediction:MenuElement({id = "PredictionW", name = "Prediction: W", drop = {"HPrediction", "TPrediction"}, value = 2})
+
+    self.KaisaMenu:MenuElement({id = "Drawings", name = "Drawings", type = MENU})
+    self.KaisaMenu.Drawings:MenuElement({id = "DrawQ", name = "Draw Q Range", value = true})
+    self.KaisaMenu.Drawings:MenuElement({id = "DrawW", name = "Draw W Range", value = true})
+    self.KaisaMenu.Drawings:MenuElement({id = "DrawR", name = "Draw R Range", value = true})
+end
+
+function Kaisa:Spells()
+    KaisaQ = {range = 600}
+    KaisaW = {speed = 1750, range = 3000, delay = 0.4, width = 100, collision = true, aoe = false, type = "line"}
+    KaisaR = {range = myHero:GetSpellData(_R).range}
+end
+
+function Kaisa:__init()
+    self:Menu()
+    self:Spells()
+    Callback.Add("Tick", function() self:Tick() end)
+    Callback.Add("Draw", function() self:Draw() end)
+end
+
+function Kaisa:Tick()
+    if myHero.dead or Game.IsChatOpen() == true then return end
+    self:Auto()
+    self:CheckE()
+    self:KillSteal()
+    if Mode() == "Combo" then
+        self:Combo()
+    elseif Mode() == "Harass" then
+        self:Harass()
+    elseif Mode() == "Clear" then
+        self:LaneClear()
+    end
+end
+
+function Kaisa:Draw()
+    if myHero.dead then return end
+    if self.KaisaMenu.Drawings.DrawQ:Value() then Draw.Circle(myHero.pos, KaisaQ.range, 1, Draw.Color(255, 0, 191, 255)) end
+    if self.KaisaMenu.Drawings.DrawW:Value() then Draw.Circle(myHero.pos, KaisaW.range, 1, Draw.Color(255, 65, 105, 225)) end
+    if self.KaisaMenu.Drawings.DrawR:Value() then Draw.Circle(myHero.pos, KaisaR.range, 1, Draw.Color(255, 0, 0, 255)) end
+end
+
+function Kaisa:UseW(target)
+    if self.KaisaMenu.Prediction.PredictionW:Value() == 1 then
+        local target, aimPosition = HPred:GetReliableTarget(myHero.pos, KaisaW.range, KaisaW.delay, KaisaW.speed, KaisaW.width, self.KaisaMenu.HitChance.HPredHit:Value(), KaisaW.collision)
+        if target and HPred:IsInRange(myHero.pos, aimPosition, KaisaW.range) then
+            Control.CastSpell(HK_W, aimPosition)
+        else
+            local hitChance, aimPosition = HPred:GetUnreliableTarget(myHero.pos, KaisaW.range, KaisaW.delay, KaisaW.speed, KaisaW.width, KaisaW.collision, self.KaisaMenu.HitChance.HPredHit:Value(), nil)
+            if hitChance and HPred:IsInRange(myHero.pos, aimPosition, KaisaW.range) then
+                Control.CastSpell(HK_W, aimPosition)
+            end
+        end
+    elseif self.KaisaMenu.Prediction.PredictionW:Value() == 2 then
+        local castpos, HitChance, pos = TPred:GetBestCastPosition(target, KaisaW.delay, KaisaW.width, KaisaW.range, KaisaW.speed, myHero.pos, KaisaW.collision, KaisaW.type)
+        if (HitChance >= self.KaisaMenu.HitChance.TPredHit:Value()) then
+            Control.CastSpell(HK_W, castpos)
+        end
+    end
+end
+
+function Kaisa:CheckE()
+    if GotBuff(myHero, "KaisaE") > 0 then
+        if _G.SDK then
+            _G.SDK.Orbwalker:SetAttack(false)
+        else
+            GOS.BlockAttack = true
+        end
+    else
+        if _G.SDK then
+            _G.SDK.Orbwalker:SetAttack(true)
+        else
+            GOS.BlockAttack = false
+        end
+    end
+end
+
+function Kaisa:Auto()
+    if target == nil then return end
+    if GetPercentMana(myHero) > self.KaisaMenu.Auto.MP:Value() then
+        if self.KaisaMenu.Auto.UseQ:Value() then
+            if IsReady(_Q) then
+                if ValidTarget(target, KaisaQ.range) then
+                    Control.KeyDown(HK_Q)
+                    Control.KeyUp(HK_Q)
+                end
+            end
+        end
+        if self.KaisaMenu.Auto.UseW:Value() then
+            if IsReady(_W) then
+                if ValidTarget(target, KaisaW.range) then
+                    self:UseW(target)
+                end
+            end
+        end
+    end
+end
+
+function Kaisa:Combo()
+    if target == nil then return end
+    if self.KaisaMenu.Combo.UseQ:Value() then
+        if IsReady(_Q) and myHero.attackData.state ~= STATE_WINDUP then
+            if ValidTarget(target, KaisaQ.range) then
+                Control.KeyDown(HK_Q)
+                Control.KeyUp(HK_Q)
+            end
+        end
+    end
+    if self.KaisaMenu.Combo.UseW:Value() then
+        if IsReady(_W) and myHero.attackData.state ~= STATE_WINDUP then
+            if ValidTarget(target, KaisaW.range) then
+                self:UseW(target)
+            end
+        end
+    end
+    if self.KaisaMenu.Combo.UseE:Value() then
+        if IsReady(_E) and myHero.attackData.state ~= STATE_WINDUP then
+            if ValidTarget(target, myHero.range + 500) and GetDistance(myHero.pos, target.pos) > myHero.range then
+                Control.KeyDown(HK_E)
+                Control.KeyUp(HK_E)
+            end
+        end
+    end
+end
+
+function Kaisa:Harass()
+    if target == nil then return end
+    if GetPercentMana(myHero) > self.KaisaMenu.Harass.MP:Value() then
+        if self.KaisaMenu.Harass.UseQ:Value() then
+            if IsReady(_Q) and myHero.attackData.state ~= STATE_WINDUP then
+                if ValidTarget(target, KaisaQ.range) then
+                    Control.KeyDown(HK_Q)
+                    Control.KeyUp(HK_Q)
+                end
+            end
+        end
+        if self.KaisaMenu.Harass.UseW:Value() then
+            if IsReady(_W) and myHero.attackData.state ~= STATE_WINDUP then
+                if ValidTarget(target, KaisaW.range) then
+                    self:UseW(target)
+                end
+            end
+        end
+        if self.KaisaMenu.Harass.UseE:Value() then
+            if IsReady(_E) and myHero.attackData.state ~= STATE_WINDUP then
+                if ValidTarget(target, myHero.range + 500) and GetDistance(myHero.pos, target.pos) > myHero.range then
+                    Control.KeyDown(HK_E)
+                    Control.KeyUp(HK_E)
+                end
+            end
+        end
+    end
+end
+
+function Kaisa:KillSteal()
+    for i, enemy in pairs(GetEnemyHeroes(KaisaW.range)) do
+        if IsReady(_W) then
+            if self.KaisaMenu.KillSteal.UseW:Value() then
+                if ValidTarget(enemy, KaisaW.range) then
+                    local KaisaWDmg = CalcMagicalDamage(myHero, enemy, ((({20, 45, 70, 95, 120})[myHero:GetSpellData(_W).level]) + (1.5 * myHero.totalDamage) + (0.6 * myHero.ap)))
+                    if (enemy.health + enemy.hpRegen * 5) < KaisaWDmg then
+                        self:UseW(enemy)
+                    end
+                end
+            end
+        end
+    end
+end
+
+function Kaisa:LaneClear()
+    if self.KaisaMenu.LaneClear.UseQ:Value() then
+        if GetPercentMana(myHero) > self.KaisaMenu.LaneClear.MP:Value() then
+            if IsReady(_Q) then
+                for i = 1, Game.MinionCount() do
+                    local minion = Game.Minion(i)
+                    if minion and minion.isEnemy then
+                        if MinionsAround(myHero.pos, KaisaQ.range, minion.team) >= 4 then
+                            Control.KeyDown(HK_Q)
+                            Control.KeyUp(HK_Q)
+                        end
+                    end
+                end
+            end
+        end
+    end
+end
+
+function Kaisa:AntiGapcloser()
+    for i, antigap in pairs(GetEnemyHeroes(500)) do
+        if IsReady(_E) then
+            if self.KaisaMenu.AntiGapcloser.UseE:Value() then
+                if ValidTarget(antigap, self.KaisaMenu.AntiGapcloser.Distance:Value()) then
+                    Control.KeyDown(HK_E)
+                    Control.KeyUp(HK_E)
+                end
+            end
+        end
+    end
 end
 
 Callback.Add("Load", function()
