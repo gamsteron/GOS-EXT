@@ -399,7 +399,7 @@ function LevelUp:Tick()
     end
     
     local levelData = myHero.levelData
-    
+
     if levelData.lvlPts <= 0 then
         return
     end
@@ -564,48 +564,48 @@ Object =
 function Object:Init
     ()
     self:OnEnemyHeroLoad(function(args)
-        if args.CharName == 'Kayle' then
+        if args.charName == 'Kayle' then
             self.UndyingBuffs['JudicatorIntervention'] = true
             return
         end
-        if args.CharName == 'Taric' then
+        if args.charName == 'Taric' then
             self.UndyingBuffs['TaricR'] = true
             return
         end
-        if args.CharName == 'Kindred' then
+        if args.charName == 'Kindred' then
             self.UndyingBuffs['kindredrnodeathbuff'] = true
             return
         end
-        if args.CharName == 'Zilean' then
+        if args.charName == 'Zilean' then
             self.UndyingBuffs['ChronoShift'] = true
             self.UndyingBuffs['chronorevive'] = true
             return
         end
-        if args.CharName == 'Tryndamere' then
+        if args.charName == 'Tryndamere' then
             self.UndyingBuffs['UndyingRage'] = true
             return
         end
-        if args.CharName == 'Jax' then
+        if args.charName == 'Jax' then
             self.UndyingBuffs['JaxCounterStrike'] = true
             return
         end
-        if args.CharName == 'Fiora' then
+        if args.charName == 'Fiora' then
             self.UndyingBuffs['FioraW'] = true
             return
         end
-        if args.CharName == 'Aatrox' then
+        if args.charName == 'Aatrox' then
             self.UndyingBuffs['aatroxpassivedeath'] = true
             return
         end
-        if args.CharName == 'Vladimir' then
+        if args.charName == 'Vladimir' then
             self.UndyingBuffs['VladimirSanguinePool'] = true
             return
         end
-        if args.CharName == 'KogMaw' then
+        if args.charName == 'KogMaw' then
             self.UndyingBuffs['KogMawIcathianSurprise'] = true
             return
         end
-        if args.CharName == 'Karthus' then
+        if args.charName == 'Karthus' then
             self.UndyingBuffs['KarthusDeathDefiedBuff'] = true
             return
         end
@@ -631,14 +631,14 @@ function Object:OnLoad
         local success = false
         for i = 1, Game.HeroCount() do
             local args = Data:GetHeroData(Game.Hero(i))
-            if args.Valid and args.IsAlly and self.AllyHeroesInGame[args.NetworkID] == nil then
-                self.AllyHeroesInGame[args.NetworkID] = true
+            if args.valid and args.isAlly and self.AllyHeroesInGame[args.networkID] == nil then
+                self.AllyHeroesInGame[args.networkID] = true
                 for j, func in pairs(self.AllyHeroCb) do
                     func(args)
                 end
             end
-            if args.Valid and args.IsEnemy and self.EnemyHeroesInGame[args.NetworkID] == nil then
-                self.EnemyHeroesInGame[args.NetworkID] = true
+            if args.valid and args.isEnemy and self.EnemyHeroesInGame[args.networkID] == nil then
+                self.EnemyHeroesInGame[args.networkID] = true
                 for j, func in pairs(self.EnemyHeroCb) do
                     func(args)
                 end
@@ -650,6 +650,7 @@ function Object:OnLoad
 end
 
 function Object:OnAllyHeroLoad
+	
     (cb)
     table.insert(self.AllyHeroCb, cb)
 end
@@ -1043,8 +1044,8 @@ function Target:Init
     self.MenuCheckSelectedOnly = Menu.Target.OnlySelectedTarget
     
     Object:OnEnemyHeroLoad(function(args)
-        local priority = Data:GetHeroPriority(args.CharName) or 1
-        self.MenuPriorities:MenuElement({id = args.CharName, name = args.CharName, value = priority, min = 1, max = 5, step = 1})
+        local priority = Data:GetHeroPriority(args.charName) or 1
+        self.MenuPriorities:MenuElement({id = args.charName, name = args.charName, value = priority, min = 1, max = 5, step = 1})
     end)
     
     if self.StackBuffs[myHero.charName] then
@@ -2844,6 +2845,14 @@ function Cursor:Init
         self:New(MOUSEEVENTF_RIGHTDOWN, self:GetControlPos(a, b, c), true)
         return true
     end
+
+    _G.Control.Evade = function(a, b, c)
+        if (self.Step > 0) then
+        	
+        end
+        self:New(MOUSEEVENTF_RIGHTDOWN, self:GetControlPos(a, b, c), true)
+        return true
+	end
     
     table.insert(SDK.Load, function()
         self:OnLoad()
@@ -3712,132 +3721,6 @@ function Health:GetLaneMinion
             end
         end
     end
-    
-    --[[
- 
-        while (c >= 0) do
-            if health2 - c * turretDamage - damage > 0 then
-                if c == 1 or c > 2 then
-                    success = true
-                end
-                break
-            end
-            c = c - 1
-        end
- 
-        if turretAttacked then
-            almostHealth = almostHealth - turretDamage
-        end
- 
-        if almostLastHitable or almostalmost then
-            if turretAttacked or isTurretTarget then
-                if startTime + windUpTime + flyTime < timer then
-                    if health - turretDamage < 0 then
-                        print("unkillable")
-                    else
- 
-                    end
-                end
-            else
- 
-            end
-        end
- 
- 
-        if turretAttacked and almostHealth - damage > 0 then
-            success = true
-        elseif 
-            local turretAttack, startTime, windUpTime, flyTime, turretDamage
-            if startTime + windUpTime + flyTime < timer then
- 
-            end
-        end
-        
-        if not success and health - turretDamage < 0 and turretAttack.target ~= handle then
-            if turretAttack.target == handle then
-                if healthUnderTurret - damage < 0 and startTime + windUpTime + flyTime > timer then
-                    success = true
-                end
-            else
-                success = true
-            end
-        end]]
-    --[[
-            -- on last hit
-            if lastHitable and healthUnderTurret - damage > 0 then
-                almostLastHitable = false
-                almostalmost = false
-                self.ShouldWaitTime = 0
-                lastHitable = false
-                success = true
-            end
-            if not success and not lastHitable and (almostLastHitable or almostalmost) then
-                
-            end almostHealth - turretDamage < 0 and almostHealth - damage > 0 then
- 
-        if not success then
-            success = almostHealth == currentHealth and healthUnderTurret - turretDamage < 0
-        end
- 
-        if not success then
-            success = currentHealth - almostHealth > 50 and almostHealth - turretDamage - damage > 0
-        end
- 
-        if not success then
-            if almostHealth == currentHealth then
-                success = currentHealth - 2 * turretDamage < 0 and currentHealth - turretDamage - damage > 0
-            end
-        end]]
-    
-    -- or almostHealth - 2 * turretDamage > 0 or healthUnderTurret - turretDamage - damage > 0 then
-    
-    --local turretAttack = self.AllyTurret.attackData
-    --if turretAttack.target == handle then
-    --local endTime = (turretAttack.endTime - 1.20048) + 0.16686 + Math:GetDistance(self.AllyTurret, target) / 1200
-    --[[
-        if success then
-            almostalmost = false
-            almostLastHitable = false
-            canUnderTurret = true
-        end
-    end
-    
-    if almostLastHitable then
-        self.ShouldWaitTime = GetTickCount()
-    end]]
-    
-    --[[
-    LastHitable = lastHitable,
-    Unkillable = unkillable,
-    AlmostLastHitable = almostLastHitable,
-    PredictedHP = health,
-    Minion = target,
-    AlmostAlmost = almostalmost,
-    Time = time,
-    -- turret
-    NearTurret = nearTurret,
-    IsTurretTarget = isTurretTarget,
-    TurretHits = turretHits,
-    TurretDamage = turretDamage,
-    TurretFlyDelay = flyTime,
-    TurretStart = startTime,
-    TurretWindup = windUpTime,
-]]
-    
-    -- 0. all based on turret target timers, health | hp - x * turretDamage > 0 - this delay - hero delay
-    -- 1. hero attacks in turret hit delay | hp - heroDmg * x < 0
-    
-    --[[ get turret delay
-        local turretDelay
-        for i = 1, #self.FarmMinions do
-            local minion = self.FarmMinions[i]
-            if Data:IsInAutoAttackRange(myHero, minion.Minion) and minion.NearTurret then
- 
-                if minion.IsTurretTarget then
-                    break
-                end
-            end
-        end]]
     
     return laneMinion
 end
@@ -6820,20 +6703,21 @@ function Data:GetHeroData
     if name == nil or self.HeroNames[name:lower()] == nil then
         return {}
     end
-    local team = obj.team
-    local isEnemy = obj.isEnemy
-    local isAlly = obj.isAlly
-    if team == nil or team < 100 or team > 200 or isEnemy == nil or isAlly == nil or isEnemy == isAlly then
+    local Team = obj.team
+    local IsEnemy = obj.isEnemy
+    local IsAlly = obj.isAlly
+    if Team == nil or Team < 100 or Team > 200 or IsEnemy == nil or IsAlly == nil or IsEnemy == IsAlly then
         return {}
     end
     return
     {
-        Valid = true,
-        IsEnemy = isEnemy,
-        IsAlly = isAlly,
-        NetworkID = id,
-        CharName = name,
-        Team = team,
+        valid = true,
+        isEnemy = IsEnemy,
+        isAlly = IsAlly,
+        networkID = id,
+        charName = name,
+        team = Team,
+        unit = obj,
     }
 end
 
