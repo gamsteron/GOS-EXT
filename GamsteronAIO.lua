@@ -299,7 +299,7 @@ function Twitch:__init()
 end
 
 function Twitch:CreateMenu()
-    Menu = MenuElement({name = "Gamsteron Twitch", id = "Gamsteron_Twitch", type = _G.MENU, leftIcon = "https://raw.githubusercontent.com/gamsteron/GOS-External/master/Icons/twitch.png"})
+    Menu = MenuElement({name = "Gamsteron Twitch", id = "Gamsteron_Twitch", type = _G.MENU})
     -- Q
     Menu:MenuElement({name = "Q settings", id = "qset", type = _G.MENU})
     Menu.qset:MenuElement({id = "combo", name = "Use Q Combo", value = false})
@@ -570,7 +570,7 @@ function Morgana:__init()
 end
 
 function Morgana:CreateMenu()
-    Menu = MenuElement({name = "Gamsteron Morgana", id = "Gamsteron_Morgana", type = _G.MENU, leftIcon = "https://raw.githubusercontent.com/gamsteron/GOS-External/master/Icons/morganads83fd.png"})
+    Menu = MenuElement({name = "Gamsteron Morgana", id = "Gamsteron_Morgana", type = _G.MENU})
     -- Q
     Menu:MenuElement({name = "Q settings", id = "qset", type = _G.MENU})
     -- Disable Attack
@@ -882,7 +882,7 @@ function Karthus:__init()
 end
 
 function Karthus:CreateMenu()
-    Menu = MenuElement({name = "Gamsteron Karthus", id = "Gamsteron_Karthus", type = _G.MENU, leftIcon = "https://raw.githubusercontent.com/gamsteron/GOS-External/master/Icons/karthusw5s.png"})
+    Menu = MenuElement({name = "Gamsteron Karthus", id = "Gamsteron_Karthus", type = _G.MENU})
     -- Q
     Menu:MenuElement({name = "Q settings", id = "qset", type = _G.MENU})
     -- Disable Attack
@@ -1080,7 +1080,7 @@ function KogMaw:__init()
 end
 
 function KogMaw:CreateMenu()
-    Menu = MenuElement({name = "Gamsteron KogMaw", id = "Gamsteron_KogMaw", type = _G.MENU, leftIcon = "https://raw.githubusercontent.com/gamsteron/GOS-External/master/Icons/kog.png"})
+    Menu = MenuElement({name = "Gamsteron KogMaw", id = "Gamsteron_KogMaw", type = _G.MENU})
     -- Q
     Menu:MenuElement({name = "Q settings", id = "qset", type = _G.MENU})
     Menu.qset:MenuElement({id = "combo", name = "Combo", value = true})
@@ -1291,7 +1291,7 @@ function Vayne:__init()
 end
 
 function Vayne:CreateMenu()
-    Menu = MenuElement({name = "Gamsteron Vayne", id = "Gamsteron_Vayne", type = _G.MENU, leftIcon = "https://raw.githubusercontent.com/gamsteron/GOS-External/master/Icons/vayne.png"})
+    Menu = MenuElement({name = "Gamsteron Vayne", id = "Gamsteron_Vayne", type = _G.MENU})
     -- Q
     Menu:MenuElement({name = "Q settings", id = "qset", type = _G.MENU})
     Menu.qset:MenuElement({id = "combo", name = "Combo", value = true})
@@ -1482,7 +1482,7 @@ function Brand:__init()
 end
 
 function Brand:CreateMenu()
-    Menu = MenuElement({name = "Gamsteron Brand", id = "Gamsteron_Brand", type = _G.MENU, leftIcon = "https://raw.githubusercontent.com/gamsteron/GOS-External/master/Icons/x1xxbrandx3xx.png"})
+    Menu = MenuElement({name = "Gamsteron Brand", id = "Gamsteron_Brand", type = _G.MENU})
     -- Q
     Menu:MenuElement({name = "Q settings", id = "qset", type = _G.MENU})
     -- KS
@@ -1885,7 +1885,7 @@ function Ezreal:__init()
 end
 
 function Ezreal:CreateMenu()
-    Menu = MenuElement({name = "Gamsteron Ezreal", id = "Gamsteron_Ezreal", type = _G.MENU, leftIcon = "https://raw.githubusercontent.com/gamsteron/GOS-External/master/Icons/ezreal.png"})
+    Menu = MenuElement({name = "Gamsteron Ezreal", id = "Gamsteron_Ezreal", type = _G.MENU})
     -- E Manual
     Menu:MenuElement({name = "Manual E", id = "mane", type = _G.MENU})
     Menu.mane:MenuElement({id = "efake", name = "E Fake Key", value = false, key = string.byte("E")})
@@ -2051,7 +2051,7 @@ function Varus:__init()
 end
 
 function Varus:CreateMenu()
-    Menu = MenuElement({name = "Gamsteron Varus", id = "Gamsteron_Varus", type = _G.MENU, leftIcon = "https://raw.githubusercontent.com/gamsteron/GOS-External/master/Icons/gsovarussf3f.png"})
+    Menu = MenuElement({name = "Gamsteron Varus", id = "Gamsteron_Varus", type = _G.MENU})
     -- Q
     Menu:MenuElement({name = "Q settings", id = "qset", type = _G.MENU})
     Menu.qset:MenuElement({id = "combo", name = "Combo", value = true})
@@ -2233,13 +2233,13 @@ function Katarina:__init()
 end
 
 function Katarina:CreateMenu()
-    Menu = MenuElement({type = _G.MENU, id = "bulkKata", name = "bulkKata", leftIcon = "http://ddragon.leagueoflegends.com/cdn/6.24.1/img/champion/Katarina.png"})
+    Menu = MenuElement({type = _G.MENU, id = "bulkKata", name = "bulkKata"})
     Menu:MenuElement({type = _G.MENU, id = "Combo", name = "[Combo Manager]"})
-    Menu.Combo:MenuElement({id = "Q", name = "Use Q", value = true, leftIcon = "http://ddragon.leagueoflegends.com/cdn/6.24.1/img/spell/KatarinaQ.png"})
-    Menu.Combo:MenuElement({id = "W", name = "Use W", value = true, leftIcon = "http://ddragon.leagueoflegends.com/cdn/6.24.1/img/spell/KatarinaW.png"})
-    Menu.Combo:MenuElement({id = "E", name = "Use E", value = true, leftIcon = "http://ddragon.leagueoflegends.com/cdn/6.24.1/img/spell/KatarinaEWrapper.png"})
-    Menu.Combo:MenuElement({id = "R", name = "Use R", value = true, leftIcon = "http://ddragon.leagueoflegends.com/cdn/6.24.1/img/spell/KatarinaR.png"})
-    Menu.Combo:MenuElement({id = "Hex", name = "Use Hextech", value = true, leftIcon = "http://ddragon.leagueoflegends.com/cdn/6.24.1/img/spell/KatarinaR.png"})
+    Menu.Combo:MenuElement({id = "Q", name = "Use Q", value = true})
+    Menu.Combo:MenuElement({id = "W", name = "Use W", value = true})
+    Menu.Combo:MenuElement({id = "E", name = "Use E", value = true})
+    Menu.Combo:MenuElement({id = "R", name = "Use R", value = true})
+    Menu.Combo:MenuElement({id = "Hex", name = "Use Hextech", value = true})
     Menu:MenuElement({type = _G.MENU, id = "RManager", name = "[R Manager]"})
     Menu.RManager:MenuElement({id = "Info", name = "Score For Each Champions :", type = SPACE})
     Menu.RManager:MenuElement({id = "ComboMode", name = "Combo Mode [?]", drop = {"Normal", "Soon", "Soon"}, tooltip = "Watch development Thread for Infos!"})
@@ -2258,12 +2258,12 @@ function Katarina:CreateMenu()
     Menu.Harass:MenuElement({id = "E", name = "Use E", value = false})
     Menu.Harass:MenuElement({id = "Disabled", name = "Disable All", value = false})
     Menu:MenuElement({type = _G.MENU, id = "Ks", name = "[KS Manager]"})
-    Menu.Ks:MenuElement({id = "Q", name = "Use Q", value = true, leftIcon = "http://ddragon.leagueoflegends.com/cdn/6.24.1/img/spell/KatarinaQ.png"})
-    Menu.Ks:MenuElement({id = "W", name = "Use W", value = true, leftIcon = "http://ddragon.leagueoflegends.com/cdn/6.24.1/img/spell/KatarinaW.png"})
-    Menu.Ks:MenuElement({id = "E", name = "Use E", value = true, leftIcon = "http://ddragon.leagueoflegends.com/cdn/6.24.1/img/spell/KatarinaEWrapper.png"})
-    Menu.Ks:MenuElement({id = "R", name = "Use R", value = false, leftIcon = "http://ddragon.leagueoflegends.com/cdn/6.24.1/img/spell/KatarinaR.png"})
+    Menu.Ks:MenuElement({id = "Q", name = "Use Q", value = true})
+    Menu.Ks:MenuElement({id = "W", name = "Use W", value = true})
+    Menu.Ks:MenuElement({id = "E", name = "Use E", value = true})
+    Menu.Ks:MenuElement({id = "R", name = "Use R", value = false})
     if myHero:GetSpellData(4).name == "SummonerDot" or myHero:GetSpellData(5).name == "SummonerDot" then
-        Menu.Ks:MenuElement({id = "UseIgn", name = "Use Ignite", value = false, leftIcon = "http://pm1.narvii.com/5792/0ce6cda7883a814a1a1e93efa05184543982a1e4_hq.jpg"})
+        Menu.Ks:MenuElement({id = "UseIgn", name = "Use Ignite", value = false})
     end
     Menu.Ks:MenuElement({id = "Recall", name = "Disable During Recall", value = true})
     Menu.Ks:MenuElement({id = "Disabled", name = "Disable All", value = false})
@@ -2669,7 +2669,7 @@ function Jhin:__init()
 end
 
 function Jhin:CreateMenu()
-    Menu = MenuElement({name = "Gamsteron Jhin", id = "gsojhin", type = MENU, leftIcon = "https://raw.githubusercontent.com/gamsteron/GOS-External/master/Icons/gsojhin23d.png"})
+    Menu = MenuElement({name = "Gamsteron Jhin", id = "gsojhin", type = MENU})
     Menu:MenuElement({id = "autor", name = "Auto R -> if jhin has R Buff", value = true})
     Menu:MenuElement({name = "Q settings", id = "qset", type = MENU})
     Menu.qset:MenuElement({id = "combo", name = "Combo", value = true})
