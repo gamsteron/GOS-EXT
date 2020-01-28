@@ -2641,11 +2641,10 @@ function Object:IsValid(obj, type, visible, immortal, jaxE)
     if obj == nil then
         return false
     end
-    local objID, objType
-    objID = obj.networkID
-    if objID == nil or objID <= 0 then
+    if (not obj.visible) or obj.dead or not obj.isTargetable then
         return false
     end
+    local objType
     objType = obj.type
     if objType == nil or (type and type ~= objType) then
         return false
@@ -2661,9 +2660,6 @@ function Object:IsValid(obj, type, visible, immortal, jaxE)
         elseif obj.isImmortal then
             return false
         end
-    end
-    if (visible and not obj.visible) or obj.dead or not obj.isTargetable then
-        return false
     end
     return true
 end
