@@ -1,6 +1,6 @@
 --https://discord.gg/wXfvEKV
 
-local Version = '1.1'
+local Version = '1.2'
 
 if _G.SDK then return end
 
@@ -82,7 +82,7 @@ function Menu:Init
     Save('MenuElement/Gamsteron_Spell_SummonerTeleport.png', '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')
     Save('MenuElement/Gamsteron_TargetSelector.png', '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')
     
-    self.Main = MenuElement({id = "GamsteronMainMenu", name = "Gamsteron", type = MENU, leftIcon = "/Gamsteron.png"})
+    self.Main = MenuElement({id = "GamOrbMainMenu", name = "GamsteronOrbwalker", type = MENU, leftIcon = "/Gamsteron.png"})
     self.Main:MenuElement({id = "Loader", name = "Loader", type = MENU, leftIcon = "/Gamsteron_Loader.png"})
     self.Main.Loader:MenuElement({id = "Items", name = "Items", value = true})
     self.Main.Loader:MenuElement({id = "SummonerSpells", name = "SummonerSpells", value = true})
@@ -106,8 +106,6 @@ function Menu:Init
     self.Orbwalker.Keys:MenuElement({id = 'Flee', name = 'Flee Key', key = string.byte('A')})
     self.Orbwalker.Keys:MenuElement({id = 'HoldKey', name = 'Hold Key', key = string.byte('H'), tooltip = 'Should be same in game keybinds'})
     self.Orbwalker:MenuElement({id = 'General', name = 'General', type = MENU})
-    self.Orbwalker.General:MenuElement({id = 'AttackTargetKeyUse', name = 'Attack Target Key Use', value = false})
-    self.Orbwalker.General:MenuElement({id = 'AttackTKey', name = 'Attack Target Key', key = string.byte('U'), tooltip = 'You should bind this one in ingame settings'})
     self.Orbwalker.General:MenuElement({id = 'AttackResetting', name = 'Attack Resetting', value = true})
     self.Orbwalker.General:MenuElement({id = 'FastKiting', name = 'Fast Kiting', value = true})
     self.Orbwalker.General:MenuElement({id = 'LaneClearHeroes', name = 'LaneClear Heroes', value = true})
@@ -193,6 +191,7 @@ function Menu:Init
     self.Main.Drawings:MenuElement({id = 'SelectedTarget', name = 'Selected Target', value = true})
     
     self.Main:MenuElement({name = '', type = _G.SPACE, id = 'GeneralSpace'})
+    self.Main:MenuElement({id = 'AttackTKey', name = 'Attack Target Key', key = string.byte('U'), tooltip = 'You should bind this one in ingame settings'})
     self.Main:MenuElement({id = 'Latency', name = 'Super important ! latency/ping/ms', value = 50, min = 0, max = 120, step = 1, callback = function(value) _G.LATENCY = value end})
     self.Main:MenuElement({id = 'CursorDelay', name = 'Cursor Delay', value = 30, min = 30, max = 50, step = 5})
     
@@ -2641,7 +2640,7 @@ function Object:IsValid(obj, type, visible, immortal, jaxE)
     if obj == nil then
         return false
     end
-    if (not obj.visible) or obj.dead or not obj.isTargetable then
+    if not obj.visible then
         return false
     end
     local objType
@@ -2650,6 +2649,9 @@ function Object:IsValid(obj, type, visible, immortal, jaxE)
         return false
     end
     if (objType == Obj_AI_Hero or objType == Obj_AI_Minion or objType == Obj_AI_Turret) and not obj.valid then
+        return false
+    end
+    if obj.dead or not obj.isTargetable then
         return false
     end
     if immortal then
@@ -3229,8 +3231,7 @@ function Health:Init()
     
     self.ShouldWaitTime = 0
     self.OnUnkillableC = {}
-    
-    self.HighestEndTime = {}
+
     self.ActiveAttacks = {}
     
     self.AllyTurret = nil
@@ -3292,6 +3293,10 @@ function Health:OnTick()
             end
             self.AttackersDamage[k] = nil
         end
+
+        for k, v in pairs(self.ActiveAttacks) do
+            self.ActiveAttacks[k] = nil
+        end
         
         for k, v in pairs(self.AllyMinionsHandles) do
             self.AllyMinionsHandles[k] = nil
@@ -3311,7 +3316,7 @@ function Health:OnTick()
         self.Spells[i]:Reset()
     end
     
-    if Orbwalker.Modes[Orbwalker.ORBWALKER_MODE_COMBO] then return end--or Orbwalker.IsNone
+    if Orbwalker.IsNone or Orbwalker.Modes[Orbwalker.ORBWALKER_MODE_COMBO] then return end
     
     self.IsLastHitable = false
     self.ShouldRemoveObjects = true
@@ -3383,16 +3388,13 @@ function Health:OnTick()
     for handle, obj in pairs(self.Handles) do
         local s = obj.activeSpell
         if s and s.valid and s.isAutoAttack then
-            if self.ActiveAttacks[handle] == nil then
-                self.ActiveAttacks[handle] = {}
-            end
             local endTime = s.endTime
             local speed = s.speed
             local animation = s.animation
             local windup = s.windup
             local target = s.target
-            if endTime and self.ActiveAttacks[handle][endTime] == nil and speed and animation and windup and target and endTime > timer and math.abs(endTime - timer - animation) < 0.05 then
-                self.ActiveAttacks[handle][endTime] =
+            if endTime and speed and animation and windup and target and endTime > timer then
+                self.ActiveAttacks[handle] =
                 {
                     Speed = speed,
                     EndTime = endTime,
@@ -3401,34 +3403,7 @@ function Health:OnTick()
                     StartTime = endTime - animation,
                     Target = target,
                 }
-                for handle2, attacks in pairs(self.ActiveAttacks) do
-                    for endTime2, attack in pairs(attacks) do
-                        if endTime - endTime2 > 15 then
-                            self.ActiveAttacks[handle][endTime2] = nil
-                        end
-                    end
-                end
-                local endTime2 = self.HighestEndTime[handle]
-                if endTime2 ~= nil and endTime - endTime2 < animation - 0.1 then
-                    self.ActiveAttacks[handle][endTime] = nil
-                end
-                self.HighestEndTime[handle] = endTime
             end
-        end
-    end
-    
-    -- RECALCULATE ATTACKS
-    for handle, endTime in pairs(self.HighestEndTime) do
-        if self.Handles[handle] == nil then
-            self.HighestEndTime[handle] = nil
-        end
-    end
-    for handle, attacks in pairs(self.ActiveAttacks) do
-        if self.Handles[handle] == nil then
-            for endTime, attack in pairs(attacks) do
-                self.ActiveAttacks[handle][endTime] = nil
-            end
-            self.ActiveAttacks[handle] = nil
         end
     end
     
@@ -3474,32 +3449,27 @@ function Health:GetPrediction(target, time)
     end
     health = self.TargetsHealth[handle]
     
-    for attackerHandle, attacks in pairs(self.ActiveAttacks) do
+    for attackerHandle, attack in pairs(self.ActiveAttacks) do
+        local c = 0
         local attacker = self.Handles[attackerHandle]
-        if attacker then
-            local c = 0
-            for endTime, attack in pairs(attacks) do
-                if attack.Target == handle then
-                    
-                    local speed, startT, flyT, endT, damage
-                    speed = attack.Speed
-                    startT = attack.StartTime
-                    flyT = speed > 0 and Math:GetDistance(attacker.pos, pos) / speed or 0
-                    endT = (startT + attack.WindUpTime + flyT) - timer
-                    
-                    if endT > 0 and endT < time then
-                        c = c + 1
-                        if self.AttackersDamage[attackerHandle] == nil then
-                            self.AttackersDamage[attackerHandle] = {}
-                        end
-                        if self.AttackersDamage[attackerHandle][handle] == nil then
-                            self.AttackersDamage[attackerHandle][handle] = Damage:GetAutoAttackDamage(attacker, target)
-                        end
-                        damage = self.AttackersDamage[attackerHandle][handle]
-                        
-                        health = health - damage
-                    end
+        if attacker and attack.Target == handle then
+            local speed, startT, flyT, endT, damage
+            speed = attack.Speed
+            startT = attack.StartTime
+            flyT = speed > 0 and Math:GetDistance(attacker.pos, pos) / speed or 0
+            endT = (startT + attack.WindUpTime + flyT) - timer
+            
+            if endT > 0 and endT < time then
+                c = c + 1
+                if self.AttackersDamage[attackerHandle] == nil then
+                    self.AttackersDamage[attackerHandle] = {}
                 end
+                if self.AttackersDamage[attackerHandle][handle] == nil then
+                    self.AttackersDamage[attackerHandle][handle] = Damage:GetAutoAttackDamage(attacker, target)
+                end
+                damage = self.AttackersDamage[attackerHandle][handle]
+                
+                health = health - damage
             end
         end
     end
@@ -3520,54 +3490,48 @@ function Health:LocalGetPrediction(target, time)
     
     local handles = {}
     
-    for attackerHandle, attacks in pairs(self.ActiveAttacks) do
+    for attackerHandle, attack in pairs(self.ActiveAttacks) do
         local attacker = self.Handles[attackerHandle]
-        if attacker then
+        if attacker and attack.Target == handle then
+            local speed, startT, flyT, endT, damage
+            speed = attack.Speed
+            startT = attack.StartTime
+            flyT = speed > 0 and Math:GetDistance(attacker.pos, pos) / speed or 0
+            endT = (startT + attack.WindUpTime + flyT) - timer
             
-            for endTime, attack in pairs(attacks) do
-                if attack.Target == handle then
-                    
-                    local speed, startT, flyT, endT, damage
-                    speed = attack.Speed
-                    startT = attack.StartTime
-                    flyT = speed > 0 and Math:GetDistance(attacker.pos, pos) / speed or 0
-                    endT = (startT + attack.WindUpTime + flyT) - timer
-                    
-                    -- laneClear
-                    if endT < 0 and timer - attack.EndTime < 1.25 then
-                        endT = attack.WindUpTime + flyT
-                        endT = timer > attack.EndTime and endT or endT + (attack.EndTime - timer)
-                        startT = timer > attack.EndTime and timer or attack.EndTime
+            -- laneClear
+            if endT < 0 and timer - attack.EndTime < 1.25 then
+                endT = attack.WindUpTime + flyT
+                endT = timer > attack.EndTime and endT or endT + (attack.EndTime - timer)
+                startT = timer > attack.EndTime and timer or attack.EndTime
+            end
+            
+            if endT > 0 and endT < time then
+                
+                handles[attackerHandle] = true
+                
+                -- damage
+                if self.AttackersDamage[attackerHandle] == nil then
+                    self.AttackersDamage[attackerHandle] = {}
+                end
+                if self.AttackersDamage[attackerHandle][handle] == nil then
+                    self.AttackersDamage[attackerHandle][handle] = Damage:GetAutoAttackDamage(attacker, target)
+                end
+                damage = self.AttackersDamage[attackerHandle][handle]
+                
+                -- laneClear
+                local c = 1
+                while (endT < time) do
+                    if attackerHandle == self.AllyTurretHandle then
+                        turretAttacked = true
+                    else
+                        health = health - damage
                     end
-                    
-                    if endT > 0 and endT < time then
-                        
-                        handles[attackerHandle] = true
-                        
-                        -- damage
-                        if self.AttackersDamage[attackerHandle] == nil then
-                            self.AttackersDamage[attackerHandle] = {}
-                        end
-                        if self.AttackersDamage[attackerHandle][handle] == nil then
-                            self.AttackersDamage[attackerHandle][handle] = Damage:GetAutoAttackDamage(attacker, target)
-                        end
-                        damage = self.AttackersDamage[attackerHandle][handle]
-                        
-                        -- laneClear
-                        local c = 1
-                        while (endT < time) do
-                            if attackerHandle == self.AllyTurretHandle then
-                                turretAttacked = true
-                            else
-                                health = health - damage
-                            end
-                            endT = (startT + attack.WindUpTime + flyT + c * attack.AnimationTime) - timer
-                            c = c + 1
-                            if c > 10 then
-                                print("ERROR LANECLEAR!")
-                                break
-                            end
-                        end
+                    endT = (startT + attack.WindUpTime + flyT + c * attack.AnimationTime) - timer
+                    c = c + 1
+                    if c > 10 then
+                        print("ERROR LANECLEAR!")
+                        break
                     end
                 end
             end
@@ -3892,6 +3856,7 @@ Cursor =
 }
 
 function Cursor:Init()
+    self.AAKey = Menu.Main.AttackTKey
     self.MenuDelay = Menu.Main.CursorDelay
     self.MenuOrbwalker = Menu.Orbwalker.General
     self.MenuDrawCursor = Menu.Main.Drawings.Cursor
@@ -3930,7 +3895,7 @@ function Cursor:Init()
         if (self.Step > 0) then
             return false
         end
-        local key = self.MenuOrbwalker.AttackTargetKeyUse:Value() and self.MenuOrbwalker.AttackTKey:Key() or MOUSEEVENTF_RIGHTDOWN
+        local key = self.AAKey:Key()
         self:New(key, target, false)
         if (self.MenuOrbwalker.FastKiting:Value()) then
             self.MoveTimer = 0
@@ -4094,19 +4059,19 @@ function Cursor:IsCursorOnTarget(pos)
     if self.TargetsBool then
         for i = 1, Game.HeroCount() do
             local unit = Game.Hero(i)
-            if unit and unit.valid and not unit.isAlly and unit.alive and unit.isTargetable and unit.visible and unit.distance < 2500 then
+            if unit and unit.valid and unit.visible and not unit.isAlly and unit.alive and unit.isTargetable and unit.distance < 2500 then
                 table.insert(self.Targets, {unit.pos, unit.boundingRadius + 180})
             end
         end
         for i = 1, Game.MinionCount() do
             local unit = Game.Minion(i)
-            if unit and unit.valid and not unit.isAlly and unit.alive and unit.isTargetable and unit.visible and unit.distance < 2500 then
+            if unit and unit.valid and unit.visible and not unit.isAlly and unit.alive and unit.isTargetable and unit.distance < 2500 then
                 table.insert(self.Targets, {unit.pos, unit.boundingRadius + 120})
             end
         end
         for i = 1, Game.TurretCount() do
             local unit = Game.Turret(i)
-            if unit and unit.valid and not unit.isAlly and unit.alive and unit.isTargetable and unit.visible and unit.distance < 2500 then
+            if unit and unit.valid and unit.visible and not unit.isAlly and unit.alive and unit.isTargetable and unit.distance < 2500 then
                 table.insert(self.Targets, {unit.pos, unit.boundingRadius + 120})
             end
         end
