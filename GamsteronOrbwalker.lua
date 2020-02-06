@@ -1,6 +1,6 @@
 --https://discord.gg/wXfvEKV
 
-local Version = '1.2'
+local Version = '1.3'
 
 if _G.SDK then return end
 
@@ -24,9 +24,24 @@ _G.SDK =
     ORBWALKER_MODE_FLEE = 5,
 }
 
-local myHero, os, math, Game, Vector, Control, Draw, table, pairs, GetTickCount = myHero, os, math, Game, Vector, Control, Draw, table, pairs, GetTickCount
+local math_huge = math.huge
+local math_pi = math.pi
+local math_sqrt = assert(math.sqrt)
+local math_abs = assert(math.abs)
+local math_ceil = assert(math.ceil)
+local math_min = assert(math.min)
+local math_max = assert(math.max)
+local math_pow = assert(math.pow)
+local math_atan = assert(math.atan)
+local math_acos = assert(math.acos)
+local math_random = assert(math.random)
+local table_sort = assert(table.sort)
+local table_remove = assert(table.remove)
+local table_insert = assert(table.insert)
 
-local Menu, Color, Action, Buff, Math, Damage, Data, Spell, SummonerSpell, Item, Object, Target, Orbwalker, Cursor, Health, Attack
+local myHero, os, Game, Vector, Control, Draw, pairs, GetTickCount = _G.myHero, _G.os, _G.Game, _G.Vector, _G.Control, _G.Draw, _G.pairs, _G.GetTickCount
+
+local Menu, Color, Action, Buff, Path, Math, Damage, Data, Spell, SummonerSpell, Item, Object, Target, Orbwalker, Cursor, Health, Attack
 
 Menu =
 {
@@ -192,7 +207,7 @@ function Menu:Init
     
     self.Main:MenuElement({name = '', type = _G.SPACE, id = 'GeneralSpace'})
     self.Main:MenuElement({id = 'AttackTKey', name = 'Attack Target Key', key = string.byte('U'), tooltip = 'You should bind this one in ingame settings'})
-    self.Main:MenuElement({id = 'Latency', name = 'Super important ! latency/ping/ms', value = 50, min = 0, max = 120, step = 1, callback = function(value) _G.LATENCY = value end})
+    self.Main:MenuElement({id = 'Latency', name = 'Ping [ms]', value = 50, min = 0, max = 120, step = 1, callback = function(value) _G.LATENCY = value end})
     self.Main:MenuElement({id = 'CursorDelay', name = 'Cursor Delay', value = 30, min = 30, max = 50, step = 5})
     
     self.Main:MenuElement({name = '', type = _G.SPACE, id = 'VersionSpaceA'})
@@ -245,17 +260,17 @@ Action =
 }
 
 function Action:Init()
-    table.insert(SDK.Load, function()
+    table_insert(SDK.Load, function()
         self:OnLoad()
     end)
 end
 
 function Action:OnLoad()
-    table.insert(SDK.FastTick, function()
+    table_insert(SDK.FastTick, function()
         for i, task in pairs(self.Tasks) do
             if os.clock() >= task[2] then
                 if task[1]() or os.clock() >= task[3] then
-                    table.remove(self.Tasks, i)
+                    table_remove(self.Tasks, i)
                 end
             end
         end
@@ -265,7 +280,7 @@ end
 function Action:Add(task, startTime, endTime)
     startTime = startTime or 0
     endTime = endTime or 10000
-    table.insert(self.Tasks, {task, os.clock() + startTime, os.clock() + startTime + endTime})
+    table_insert(self.Tasks, {task, os.clock() + startTime, os.clock() + startTime + endTime})
 end
 
 Buff =
@@ -275,13 +290,13 @@ Buff =
 }
 
 function Buff:Init()
-    table.insert(SDK.Load, function()
+    table_insert(SDK.Load, function()
         self:OnLoad()
     end)
 end
 
 function Buff:OnLoad()
-    table.insert(SDK.Tick, function()
+    table_insert(SDK.Tick, function()
         self.CachedBuffs = {}
     end)
 end
@@ -377,9 +392,93 @@ function Buff:GetBuffCount(unit, name)
     return 0
 end
 
+Path =
+{
+}
+
+function Path:GetLenght(path)
+    local result = 0
+    for i = 1, #path - 1 do
+        result = result + Math:GetDistance(path[i], path[i + 1])
+    end
+    return result
+end
+
+function Path:CutPath(path, distance)
+    local result = {}
+
+    if distance <= 0 then
+        return path
+    end
+
+    for i = 1, #path - 1 do
+        local a, b = path[i], path[i+1]
+        local dist = Math:GetDistance(a, b)
+        if dist > distance then
+            table_insert(result, Math:Extended(a, Math:Normalized(b, a), distance))
+            for j = i + 1, #path do
+                table_insert(result, path[j])
+            end
+            break
+        end
+        distance = distance - dist
+    end
+
+    return #result > 0 and result or {path[#path]}
+end
+
+function Path:ReversePath(path)
+    local result = {}
+
+    for i = #path, 1, -1 do
+        table_insert(result, path[i])
+    end
+
+    return result
+end
+
+function Path:GetPath(unit)
+    local result = {}
+    local path = unit.pathing
+    table_insert(result, Math:Get2D(unit.pos))
+    if path.isDashing then
+        table_insert(result, Math:Get2D(path.endPos))
+    else
+        for i = path.pathIndex, path.pathCount do
+            table_insert(result, Math:Get2D(unit:GetPath(i)))
+        end
+    end
+    return result
+end
+
+function Path:GetPredictedPath(source, speed, movespeed, path)
+    local result = {}
+    local tT = 0
+    for i = 1, #path - 1 do
+        local a = path[i];table_insert(result, a)
+        local b = path[i + 1]
+        local tB = Math:GetDistance(a, b) / movespeed
+        local direction = Math:Normalized(b, a)
+        a = Math:Extended(a, direction, -(movespeed * tT))
+        local t = Math:Intercept(source, a, b, speed, movespeed)
+        if (t and t >= tT and t <= tT + tB) then
+            table_insert(result, Math:Extended(a, direction, t * movespeed))
+            return result, t
+        end
+        tT = tT + tB
+    end
+    
+    return nil, -1
+end
+
 Math =
 {
 }
+
+function Math:Get2D(p)
+    p = p.pos == nil and p or p.pos
+    return {x = p.x, z = p.z == nil and p.y or p.z}
+end
 
 function Math:PointOnSegment(p, p1, p2)
     local result =
@@ -412,7 +511,7 @@ function Math:PointOnSegment(p, p1, p2)
 end
 
 function Math:RadianToDegree(angle)
-    return angle * (180.0 / math.pi)
+    return angle * (180.0 / math_pi)
 end
 
 function Math:Polar(v1)
@@ -424,7 +523,7 @@ function Math:Polar(v1)
         end
         return z < 0 and 270 or 0
     end
-    local theta = self:RadianToDegree(math.atan(z / x))
+    local theta = self:RadianToDegree(math_atan(z / x))
     if x < 0 then
         theta = theta + 180
     end
@@ -454,31 +553,10 @@ function Math:EqualVector(vec1, vec2)
     return false
 end
 
-function Math:Quad(a, b, c)
-    local sol = nil
-    if (math.abs(a) < 1e-6) then
-        if (math.abs(b) < 1e-6) then
-            if (math.abs(c) < 1e-6) then
-                sol = {0, 0}
-            end
-        else
-            sol = {-c / b, -c / b}
-        end
-    else
-        local disc = b * b - 4 * a * c
-        if (disc >= 0) then
-            disc = math.sqrt(disc)
-            local a = 2 * a
-            sol = {(-b - disc) / a, (-b + disc) / a}
-        end
-    end
-    return sol
-end
-
 function Math:Intercept(src, spos, epos, sspeed, tspeed)
     local dx = epos.x - spos.x
     local dz = epos.z - spos.z
-    local magnitude = math.sqrt(dx * dx + dz * dz)
+    local magnitude = math_sqrt(dx * dx + dz * dz)
     local tx = spos.x - src.x
     local tz = spos.z - src.z
     local tvx = (dx / magnitude) * tspeed
@@ -488,15 +566,31 @@ function Math:Intercept(src, spos, epos, sspeed, tspeed)
     local b = 2 * (tvx * tx + tvz * tz)
     local c = tx * tx + tz * tz
     
-    local ts = self:Quad(a, b, c)
-    
-    local sol = nil
+    local ts
+    if (math_abs(a) < 1e-6) then
+        if (math_abs(b) < 1e-6) then
+            if (math_abs(c) < 1e-6) then
+                ts = {0, 0}
+            end
+        else
+            ts = {-c / b, -c / b}
+        end
+    else
+        local disc = b * b - 4 * a * c
+        if (disc >= 0) then
+            disc = math_sqrt(disc)
+            local a = 2 * a
+            ts = {(-b - disc) / a, (-b + disc) / a}
+        end
+    end
+
+    local sol
     if (ts) then
         local t0 = ts[1]
         local t1 = ts[2]
-        local t = math.min(t0, t1)
+        local t = math_min(t0, t1)
         if (t < 0) then
-            t = math.max(t0, t1)
+            t = math_max(t0, t1)
         end
         if (t > 0) then
             sol = t
@@ -547,7 +641,7 @@ function Math:GetDistance(v1, v2)
     v2 = v2.pos or v2
     local dx = v1.x - v2.x
     local dz = (v1.z or v1.y) - (v2.z or v2.y)
-    return math.sqrt(dx * dx + dz * dz)
+    return math_sqrt(dx * dx + dz * dz)
 end
 
 function Math:EqualDirection(vec1, vec2)
@@ -556,7 +650,7 @@ end
 
 function Math:Normalized(vec1, vec2)
     local vec = {x = vec1.x - vec2.x, y = 0, z = (vec1.z or vec1.y) - (vec2.z or vec2.y)}
-    local length = math.sqrt(vec.x * vec.x + vec.z * vec.z)
+    local length = math_sqrt(vec.x * vec.x + vec.z * vec.z)
     if length > 0 then
         local inv = 1.0 / length
         return Vector(vec.x * inv, 0, vec.z * inv)
@@ -606,6 +700,17 @@ function Math:ProjectOn(p, p1, p2)
         pointSegment = pointLine
     end
     return isOnSegment, pointSegment, pointLine
+end
+
+function Math:FindAngle(p0, p1, p2)
+    local b = math_pow(p1.x - p0.x, 2) + math_pow(p1.z - p0.z, 2)
+    local a = math_pow(p1.x - p2.x, 2) + math_pow(p1.z - p2.z, 2)
+    local c = math_pow(p2.x - p0.x, 2) + math_pow(p2.z - p0.z, 2)
+    local angle = math_acos((a + b - c) / math_sqrt(4 * a * b)) * (180 / math_pi)
+    if (angle > 90) then
+        angle = 180 - angle
+    end
+    return angle
 end
 
 Damage =
@@ -662,7 +767,7 @@ function Damage:Init()
         ["Diana"] = function(args)
             if Buff:GetBuffCount(args.From, "dianapassivemarker") == 2 then
                 local level = args.From.levelData.lvl
-                args.RawMagical = args.RawMagical + math.max(15 + 5 * level, -10 + 10 * level, -60 + 15 * level, -125 + 20 * level, -200 + 25 * level) + 0.8 * args.From.ap
+                args.RawMagical = args.RawMagical + math_max(15 + 5 * level, -10 + 10 * level, -60 + 15 * level, -125 + 20 * level, -200 + 25 * level) + 0.8 * args.From.ap
             end
         end,
         ["Draven"] = function(args)
@@ -673,7 +778,7 @@ function Damage:Init()
         end,
         ["Graves"] = function(args)
             local t = {70, 71, 72, 74, 75, 76, 78, 80, 81, 83, 85, 87, 89, 91, 95, 96, 97, 100}
-            args.RawTotal = args.RawTotal * t[math.max(math.min(args.From.levelData.lvl, 18), 1)] * 0.01
+            args.RawTotal = args.RawTotal * t[math_max(math_min(args.From.levelData.lvl, 18), 1)] * 0.01
         end,
         ["Jinx"] = function(args)
             if Buff:HasBuff(args.From, "JinxQ") then
@@ -695,13 +800,13 @@ function Damage:Init()
         end,
         ["Nasus"] = function(args)
             if Buff:HasBuff(args.From, "NasusQ") then
-                args.RawPhysical = args.RawPhysical + math.max(Buff:GetBuffCount(args.From, "NasusQStacks"), 0) + 10 + 20 * args.From:GetSpellData(_Q).level
+                args.RawPhysical = args.RawPhysical + math_max(Buff:GetBuffCount(args.From, "NasusQStacks"), 0) + 10 + 20 * args.From:GetSpellData(_Q).level
             end
         end,
         ["Thresh"] = function(args)
             local level = args.From:GetSpellData(_E).level
             if level > 0 then
-                local damage = math.max(Buff:GetBuffCount(args.From, "threshpassivesouls"), 0) + (0.5 + 0.3 * level) * args.From.totalDamage
+                local damage = math_max(Buff:GetBuffCount(args.From, "threshpassivesouls"), 0) + (0.5 + 0.3 * level) * args.From.totalDamage
                 if Buff:HasBuff(args.From, "threshqpassive4") then
                     damage = damage * 1
                 elseif Buff:HasBuff(args.From, "threshqpassive3") then
@@ -774,7 +879,7 @@ function Damage:Init()
         [3087] = function(args)
             if Buff:GetBuffCount(args.From, "itemstatikshankcharge") == 100 then
                 local t = {50, 50, 50, 50, 50, 56, 61, 67, 72, 77, 83, 88, 94, 99, 104, 110, 115, 120}
-                args.RawMagical = args.RawMagical + (1 + (args.TargetIsMinion and 1.2 or 0)) * t[math.max(math.min(args.From.levelData.lvl, 18), 1)]
+                args.RawMagical = args.RawMagical + (1 + (args.TargetIsMinion and 1.2 or 0)) * t[math_max(math_min(args.From.levelData.lvl, 18), 1)]
             end
         end,
         [3091] = function(args)
@@ -783,7 +888,7 @@ function Damage:Init()
         [3094] = function(args)
             if Buff:GetBuffCount(args.From, "itemstatikshankcharge") == 100 then
                 local t = {50, 50, 50, 50, 50, 58, 66, 75, 83, 92, 100, 109, 117, 126, 134, 143, 151, 160}
-                args.RawMagical = args.RawMagical + t[math.max(math.min(args.From.levelData.lvl, 18), 1)]
+                args.RawMagical = args.RawMagical + t[math_max(math_min(args.From.levelData.lvl, 18), 1)]
             end
         end,
         [3100] = function(args)
@@ -804,7 +909,7 @@ function Damage:Init()
         ["Jhin"] = function(args)
             if Buff:HasBuff(args.From, "jhinpassiveattackbuff") then
                 args.CriticalStrike = true
-                args.RawPhysical = args.RawPhysical + math.min(0.25, 0.1 + 0.05 * math.ceil(args.From.levelData.lvl / 5)) * (args.Target.maxHealth - args.Target.health)
+                args.RawPhysical = args.RawPhysical + math_min(0.25, 0.1 + 0.05 * math_ceil(args.From.levelData.lvl / 5)) * (args.Target.maxHealth - args.Target.health)
             end
         end,
         ["Lux"] = function(args)
@@ -813,10 +918,10 @@ function Damage:Init()
             end
         end,
         ["Orianna"] = function(args)
-            local level = math.ceil(args.From.levelData.lvl / 3)
+            local level = math_ceil(args.From.levelData.lvl / 3)
             args.RawMagical = args.RawMagical + 2 + 8 * level + 0.15 * args.From.ap
             if args.Target.handle == args.From.attackData.target then
-                args.RawMagical = args.RawMagical + math.max(Buff:GetBuffCount(args.From, "orianapowerdaggerdisplay"), 0) * (0.4 + 1.6 * level + 0.03 * args.From.ap)
+                args.RawMagical = args.RawMagical + math_max(Buff:GetBuffCount(args.From, "orianapowerdaggerdisplay"), 0) * (0.4 + 1.6 * level + 0.03 * args.From.ap)
             end
         end,
         ["Quinn"] = function(args)
@@ -828,12 +933,12 @@ function Damage:Init()
         ["Vayne"] = function(args)
             if Buff:GetBuffCount(args.Target, "VayneSilveredDebuff") == 2 then
                 local level = args.From:GetSpellData(_W).level
-                args.CalculatedTrue = args.CalculatedTrue + math.max((0.045 + 0.015 * level) * args.Target.maxHealth, 20 + 20 * level)
+                args.CalculatedTrue = args.CalculatedTrue + math_max((0.045 + 0.015 * level) * args.Target.maxHealth, 20 + 20 * level)
             end
         end,
         ["Zed"] = function(args)
             if 100 * args.Target.health / args.Target.maxHealth <= 50 and not Buff:HasBuff(args.From, "zedpassivecd") then
-                args.RawMagical = args.RawMagical + args.Target.maxHealth * (4 + 2 * math.ceil(args.From.levelData.lvl / 6)) * 0.01
+                args.RawMagical = args.RawMagical + args.Target.maxHealth * (4 + 2 * math_ceil(args.From.levelData.lvl / 6)) * 0.01
             end
         end
     }
@@ -879,7 +984,7 @@ function Damage:CalculateDamage(from, target, damageType, rawDamage, isAbility, 
     local penetrationPercent = 0
     local bonusPenetrationPercent = 0
     if damageType == self.DAMAGE_TYPE_PHYSICAL then
-        baseResistance = math.max(target.armor - target.bonusArmor, 0)
+        baseResistance = math_max(target.armor - target.bonusArmor, 0)
         bonusResistance = target.bonusArmor
         penetrationFlat = from.armorPen
         penetrationPercent = from.armorPenPercent
@@ -895,7 +1000,7 @@ function Damage:CalculateDamage(from, target, damageType, rawDamage, isAbility, 
             bonusPenetrationPercent = 0
         end
     elseif damageType == self.DAMAGE_TYPE_MAGICAL then
-        baseResistance = math.max(target.magicResist - target.bonusMagicResist, 0)
+        baseResistance = math_max(target.magicResist - target.bonusMagicResist, 0)
         bonusResistance = target.bonusMagicResist
         penetrationFlat = from.magicPen
         penetrationPercent = from.magicPenPercent
@@ -931,7 +1036,7 @@ function Damage:CalculateDamage(from, target, damageType, rawDamage, isAbility, 
     if not isAbility and targetIsMinion then
         flatReceived = flatReceived - target.flatDamageReduction
     end
-    return math.max(percentPassive * percentMod * (rawDamage + flatPassive) + flatReceived, 0)
+    return math_max(percentPassive * percentMod * (rawDamage + flatPassive) + flatReceived, 0)
 end
 
 function Damage:GetStaticAutoAttackDamage(from, targetIsMinion)
@@ -1239,9 +1344,9 @@ Data = {
         end,
     },
     
-    --10.2.1
-    HEROES={aatrox={3,true},ahri={4,false},akali={4,true},alistar={1,true},amumu={1,true},anivia={4,false},annie={4,false},aphelios={5,false},ashe={5,false},aurelionsol={4,false},azir={4,true},bard={3,false},blitzcrank={1,true},brand={4,false},braum={1,true},caitlyn={5,false},camille={3,true},cassiopeia={4,false},chogath={1,true},corki={5,false},darius={2,true},diana={4,true},draven={5,false},drmundo={1,true},ekko={4,true},elise={3,false},evelynn={4,true},ezreal={5,false},fiddlesticks={3,false},fiora={3,true},fizz={4,true},galio={1,true},gangplank={4,true},garen={1,true},gnar={1,false},gragas={2,true},graves={4,false},hecarim={2,true},heimerdinger={3,false},illaoi={3,true},irelia={3,true},ivern={1,true},janna={2,false},jarvaniv={3,true},jax={3,true},jayce={4,false},jhin={5,false},jinx={5,false},kaisa={5,false},kalista={5,false},karma={4,false},karthus={4,false},kassadin={4,true},katarina={4,true},kayle={4,false},kayn={4,true},kennen={4,false},khazix={4,true},kindred={4,false},kled={2,true},kogmaw={5,false},leblanc={4,false},leesin={3,true},leona={1,true},lissandra={4,false},lucian={5,false},lulu={3,false},lux={4,false},malphite={1,true},malzahar={3,false},maokai={2,true},masteryi={5,true},missfortune={5,false},monkeyking={3,true},mordekaiser={4,true},morgana={3,false},nami={3,false},nasus={2,true},nautilus={1,true},neeko={4,false},nidalee={4,false},nocturne={4,true},nunu={2,true},olaf={2,true},orianna={4,false},ornn={2,true},pantheon={3,true},poppy={2,true},pyke={4,true},qiyana={4,true},quinn={5,false},rakan={3,true},rammus={1,true},reksai={2,true},renekton={2,true},rengar={4,true},riven={4,true},rumble={4,true},ryze={4,false},sejuani={2,true},senna={5,true},sett={2,true},shaco={4,true},shen={1,true},shyvana={2,true},singed={1,true},sion={1,true},sivir={5,false},skarner={2,true},sona={3,false},soraka={3,false},swain={3,false},sylas={4,true},syndra={4,false},tahmkench={1,true},taliyah={4,false},talon={4,true},taric={1,true},teemo={4,false},thresh={1,true},tristana={5,false},trundle={2,true},tryndamere={4,true},twistedfate={4,false},twitch={5,false},udyr={2,true},urgot={2,true},varus={5,false},vayne={5,false},veigar={4,false},velkoz={4,false},vi={2,true},viktor={4,false},vladimir={3,false},volibear={2,true},warwick={2,true},xayah={5,false},xerath={4,false},xinzhao={3,true},yasuo={4,true},yorick={2,true},yuumi={3,false},zac={1,true},zed={4,true},ziggs={4,false},zilean={3,false},zoe={4,false},zyra={2,false},},
-    
+    --10.3.1
+    HEROES={aatrox={3,true,0.651},ahri={4,false,0.668},akali={4,true,0.625},alistar={1,true,0.625},amumu={1,true,0.736},anivia={4,false,0.625},annie={4,false,0.579},aphelios={5,false,0.64},ashe={5,false,0.658},aurelionsol={4,false,0.625},azir={4,true,0.625},bard={3,false,0.625},blitzcrank={1,true,0.625},brand={4,false,0.625},braum={1,true,0.644},caitlyn={5,false,0.625},camille={3,true,0.644},cassiopeia={4,false,0.647},chogath={1,true,0.625},corki={5,false,0.638},darius={2,true,0.625},diana={4,true,0.625},draven={5,false,0.679},drmundo={1,true,0.721},ekko={4,true,0.688},elise={3,false,0.625},evelynn={4,true,0.667},ezreal={5,false,0.625},fiddlesticks={3,false,0.625},fiora={3,true,0.69},fizz={4,true,0.658},galio={1,true,0.625},gangplank={4,true,0.658},garen={1,true,0.625},gnar={1,false,0.625},gragas={2,true,0.675},graves={4,false,0.475},hecarim={2,true,0.67},heimerdinger={3,false,0.625},illaoi={3,true,0.571},irelia={3,true,0.656},ivern={1,true,0.644},janna={2,false,0.625},jarvaniv={3,true,0.658},jax={3,true,0.638},jayce={4,false,0.658},jhin={5,false,0.625},jinx={5,false,0.625},kaisa={5,false,0.644},kalista={5,false,0.694},karma={4,false,0.625},karthus={4,false,0.625},kassadin={4,true,0.64},katarina={4,true,0.658},kayle={4,false,0.625},kayn={4,true,0.669},kennen={4,false,0.625},khazix={4,true,0.668},kindred={4,false,0.625},kled={2,true,0.625},kogmaw={5,false,0.665},leblanc={4,false,0.625},leesin={3,true,0.651},leona={1,true,0.625},lissandra={4,false,0.656},lucian={5,false,0.638},lulu={3,false,0.625},lux={4,false,0.669},malphite={1,true,0.736},malzahar={3,false,0.625},maokai={2,true,0.8},masteryi={5,true,0.679},missfortune={5,false,0.656},monkeyking={3,true,0.711},mordekaiser={4,true,0.625},morgana={3,false,0.625},nami={3,false,0.644},nasus={2,true,0.638},nautilus={1,true,0.706},neeko={4,false,0.625},nidalee={4,false,0.638},nocturne={4,true,0.721},nunu={2,true,0.625},olaf={2,true,0.694},orianna={4,false,0.658},ornn={2,true,0.625},pantheon={3,true,0.644},poppy={2,true,0.625},pyke={4,true,0.667},qiyana={4,true,0.625},quinn={5,false,0.668},rakan={3,true,0.635},rammus={1,true,0.625},reksai={2,true,0.667},renekton={2,true,0.665},rengar={4,true,0.667},riven={4,true,0.625},rumble={4,true,0.644},ryze={4,false,0.625},sejuani={2,true,0.688},senna={5,true,0.625},sett={2,true,0.625},shaco={4,true,0.694},shen={1,true,0.751},shyvana={2,true,0.658},singed={1,true,0.613},sion={1,true,0.679},sivir={5,false,0.625},skarner={2,true,0.625},sona={3,false,0.644},soraka={3,false,0.625},swain={3,false,0.625},sylas={4,true,0.645},syndra={4,false,0.625},tahmkench={1,true,0.658},taliyah={4,false,0.625},talon={4,true,0.625},taric={1,true,0.625},teemo={4,false,0.69},thresh={1,true,0.625},tristana={5,false,0.656},trundle={2,true,0.67},tryndamere={4,true,0.67},twistedfate={4,false,0.651},twitch={5,false,0.679},udyr={2,true,0.658},urgot={2,true,0.625},varus={5,false,0.658},vayne={5,false,0.658},veigar={4,false,0.625},velkoz={4,false,0.625},vi={2,true,0.644},viktor={4,false,0.658},vladimir={3,false,0.658},volibear={2,true,0.658},warwick={2,true,0.638},xayah={5,false,0.625},xerath={4,false,0.625},xinzhao={3,true,0.645},yasuo={4,true,0.697},yorick={2,true,0.625},yuumi={3,false,0.625},zac={1,true,0.736},zed={4,true,0.651},ziggs={4,false,0.656},zilean={3,false,0.625},zoe={4,false,0.625},zyra={2,false,0.625},},
+
     HeroSpecialMelees =
     {
         ['elise'] = function()
@@ -1369,7 +1474,7 @@ function Data:Init()
     self.IsHeroSpecialMelee = self.HeroSpecialMelees[self.HeroName]
     self.ExtraAttackRange = self.ExtraAttackRanges[self.HeroName]
     
-    table.insert(SDK.Load, function()
+    table_insert(SDK.Load, function()
         self:OnLoad()
     end)
 end
@@ -1391,7 +1496,7 @@ function Data:OnLoad()
         local AttackResetSpellName = self.AttackReset.SpellName
         local X, T = 0, 0
         if not self.AttackResetCanCancel then--and not Object.IsRiven then
-            table.insert(SDK.WndMsg, function(msg, wParam)
+            table_insert(SDK.WndMsg, function(msg, wParam)
                 if not self.AttackResetSuccess and not Control.IsKeyDown(HK_LUS) and not Game.IsChatOpen() and wParam == AttackResetKey then
                     local checkNum = Object.IsRiven and 400 or 600
                     if GetTickCount() <= self.AttackResetTimer + checkNum then
@@ -1654,11 +1759,11 @@ function Data:Join(t1, t2)
     local t = {}
     
     for i = 1, #t1 do
-        table.insert(t, t1[i])
+        table_insert(t, t1[i])
     end
     
     for i = 1, #t2 do
-        table.insert(t, t2[i])
+        table_insert(t, t2[i])
     end
     
     return t
@@ -1765,13 +1870,13 @@ function Spell:Init()
         return 1
     end;
     
-    table.insert(SDK.Load, function()
+    table_insert(SDK.Load, function()
         self:OnLoad()
     end)
 end
 
 function Spell:OnLoad()
-    table.insert(SDK.WndMsg, function(msg, wParam)
+    table_insert(SDK.WndMsg, function(msg, wParam)
         local timer = Game.Timer()
         
         if wParam == HK_Q then
@@ -1907,7 +2012,7 @@ function Spell:SpellClear(spell, spelldata, isReady, canLastHit, canLaneClear, g
             if minion.LastHitable then
                 local unit = minion.Minion
                 if unit.handle ~= Health.LastHitHandle then
-                    table.insert(result, unit)
+                    table_insert(result, unit)
                 end
             end
         end
@@ -1923,7 +2028,7 @@ function Spell:SpellClear(spell, spelldata, isReady, canLastHit, canLaneClear, g
         for i, minion in pairs(self.FarmMinions) do
             local unit = minion.Minion
             if unit.handle ~= Health.LaneClearHandle then
-                table.insert(result, unit)
+                table_insert(result, unit)
             end
         end
         
@@ -1957,7 +2062,7 @@ function Spell:SpellClear(spell, spelldata, isReady, canLastHit, canLaneClear, g
     
     function c:Reset()
         for i = 1, #self.FarmMinions do
-            table.remove(self.FarmMinions, i)
+            table_remove(self.FarmMinions, i)
         end
         self.IsLastHitable = false
         self.LastHitHandle = 0
@@ -1994,10 +2099,10 @@ function Spell:SpellClear(spell, spelldata, isReady, canLastHit, canLaneClear, g
             return
         end
         
-        local targets = Object:GetEnemyMinions(self.Range - 35, false, true, true)
+        local targets = Object:GetEnemyMinions(self.Range, false, true, true)
         for i = 1, #targets do
             local target = targets[i]
-            table.insert(self.FarmMinions, self:SetLastHitable(target, self.Delay + target.distance / self.Speed + Data:GetLatency(), getDamage()))
+            table_insert(self.FarmMinions, self:SetLastHitable(target, self.Delay + target.distance / self.Speed + Data:GetLatency(), getDamage()))
         end
         
         if self.IsLastHitable and (isLastHit or isLaneClear) then
@@ -2078,14 +2183,14 @@ function SummonerSpell:Init()
     self.MenuCleanse = Menu.SummonerSpells.Cleanse
     self.MenuCleanseBuffs = Menu.SummonerSpells.Cleanse.BuffTypes
     
-    table.insert(SDK.Load, function()
+    table_insert(SDK.Load, function()
         self:OnLoad()
     end)
 end
 
 function SummonerSpell:OnLoad()
     print('loaded')
-    table.insert(SDK.Tick, function()
+    table_insert(SDK.Tick, function()
         self:OnTick()
     end)
 end
@@ -2232,13 +2337,13 @@ function Item:Init()
     self.MenuQssBuffs = Menu.Main.Items.Qss.BuffTypes
     self.MenuBotrk = Menu.Main.Items.Botrk
     self.MenuGunblade = Menu.Main.Items.HexGun
-    table.insert(SDK.Load, function()
+    table_insert(SDK.Load, function()
         self:OnLoad()
     end)
 end
 
 function Item:OnLoad()
-    table.insert(SDK.Tick, function()
+    table_insert(SDK.Tick, function()
         if self:UseQss() then
             return
         end
@@ -2254,7 +2359,7 @@ function Item:OnLoad()
         end
     end)
     
-    table.insert(SDK.Tick, function()
+    table_insert(SDK.Tick, function()
         self.CachedItems = {}
     end)
 end
@@ -2302,7 +2407,7 @@ function Item:UseBotrk()
     end
     
     local bbox = myHero.boundingRadius
-    local target = Target:GetTarget(550 - 35 + bbox, 0, true)
+    local target = Target:GetTarget(550 + bbox, 0, true)
     
     if target == nil then
         return false
@@ -2320,12 +2425,12 @@ function Item:UseBotrk()
             if Object:IsValid(hero, Obj_AI_Hero) and hero.isEnemy then
                 local heroRange = hero.range
                 if heroRange < 400 and hero.distance < heroRange + bbox + hero.boundingRadius then
-                    table.insert(meleeHeroes, hero)
+                    table_insert(meleeHeroes, hero)
                 end
             end
         end
         if #meleeHeroes > 0 then
-            table.sort(meleeHeroes, function(a, b) return a.health + (a.totalDamage * 2) + (a.attackSpeed * 100) > b.health + (b.totalDamage * 2) + (b.attackSpeed * 100) end)
+            table_sort(meleeHeroes, function(a, b) return a.health + (a.totalDamage * 2) + (a.attackSpeed * 100) > b.health + (b.totalDamage * 2) + (b.attackSpeed * 100) end)
             Control.CastSpell(self.Hotkey, meleeHeroes[1])
             return true
         end
@@ -2354,7 +2459,7 @@ function Item:UseGunblade()
         return false
     end
     
-    local target = Target:GetTarget(700 - 35, 1, false)
+    local target = Target:GetTarget(700, 1, false)
     
     if target == nil then
         return false
@@ -2373,12 +2478,12 @@ function Item:UseGunblade()
             if Object:IsValid(hero, Obj_AI_Hero) and hero.isEnemy then
                 local heroRange = hero.range
                 if heroRange < 400 and hero.distance < heroRange + bbox + hero.boundingRadius then
-                    table.insert(meleeHeroes, hero)
+                    table_insert(meleeHeroes, hero)
                 end
             end
         end
         if #meleeHeroes > 0 then
-            table.sort(meleeHeroes, function(a, b) return a.health + (a.totalDamage * 2) + (a.attackSpeed * 100) > b.health + (b.totalDamage * 2) + (b.attackSpeed * 100) end)
+            table_sort(meleeHeroes, function(a, b) return a.health + (a.totalDamage * 2) + (a.attackSpeed * 100) > b.health + (b.totalDamage * 2) + (b.attackSpeed * 100) end)
             Control.CastSpell(self.Hotkey, meleeHeroes[1])
             return true
         end
@@ -2570,7 +2675,7 @@ function Object:Init()
             return
         end
     end)
-    table.insert(SDK.Load, function()
+    table_insert(SDK.Load, function()
         self:OnLoad()
     end)
 end
@@ -2580,9 +2685,9 @@ function Object:OnLoad()
         local object = Game.Object(i)
         if object and (object.type == Obj_AI_Barracks or object.type == Obj_AI_Nexus) then
             if object.isEnemy then
-                table.insert(self.EnemyBuildings, object)
+                table_insert(self.EnemyBuildings, object)
             elseif object.isAlly then
-                table.insert(self.AllyBuildings, object)
+                table_insert(self.AllyBuildings, object)
             end
         end
     end
@@ -2609,11 +2714,11 @@ function Object:OnLoad()
 end
 
 function Object:OnAllyHeroLoad(cb)
-    table.insert(self.AllyHeroCb, cb)
+    table_insert(self.AllyHeroCb, cb)
 end
 
 function Object:OnEnemyHeroLoad(cb)
-    table.insert(self.EnemyHeroCb, cb)
+    table_insert(self.EnemyHeroCb, cb)
 end
 
 function Object:IsHeroImmortal(unit, jaxE)
@@ -2670,7 +2775,7 @@ function Object:GetObjectsFromTable(t, func)
     local result = {}
     for i, obj in pairs(t) do
         if func(obj) then
-            table.insert(result, obj)
+            table_insert(result, obj)
         end
     end
     return result
@@ -2681,10 +2786,10 @@ function Object:GetHeroes(range, bbox, visible, immortal, jaxE, func)
     local a = self:GetEnemyHeroes(range, bbox, visible, immortal, jaxE, func)
     local b = self:GetAllyHeroes(range, bbox, visible, immortal, jaxE, func)
     for i = 1, #a do
-        table.insert(result, a[i])
+        table_insert(result, a[i])
     end
     for i = 1, #b do
-        table.insert(result, b[i])
+        table_insert(result, b[i])
     end
     return result
 end
@@ -2695,7 +2800,7 @@ function Object:GetEnemyHeroes(range, bbox, visible, immortal, jaxE, func)
         local obj = Game.Hero(i)
         if self:IsValid(obj, Obj_AI_Hero, visible, immortal, jaxE) and obj.isEnemy then
             if (not range or obj.distance < range + (bbox and obj.boundingRadius or 0)) and (not func or func(obj)) then
-                table.insert(result, obj)
+                table_insert(result, obj)
             end
         end
     end
@@ -2708,7 +2813,7 @@ function Object:GetAllyHeroes(range, bbox, visible, immortal, jaxE, func)
         local obj = Game.Hero(i)
         if self:IsValid(obj, Obj_AI_Hero, visible, immortal, jaxE) and obj.isAlly then
             if (not range or obj.distance < range + (bbox and obj.boundingRadius or 0)) and (not func or func(obj)) then
-                table.insert(result, obj)
+                table_insert(result, obj)
             end
         end
     end
@@ -2720,10 +2825,10 @@ function Object:GetMinions(range, bbox, visible, immortal, func)
     local a = self:GetEnemyMinions(range, bbox, visible, immortal, func)
     local b = self:GetAllyMinions(range, bbox, visible, immortal, func)
     for i = 1, #a do
-        table.insert(result, a[i])
+        table_insert(result, a[i])
     end
     for i = 1, #b do
-        table.insert(result, b[i])
+        table_insert(result, b[i])
     end
     return result
 end
@@ -2734,7 +2839,7 @@ function Object:GetEnemyMinions(range, bbox, visible, immortal, func)
         local obj = Game.Minion(i)
         if self:IsValid(obj, Obj_AI_Minion, visible, immortal) and obj.isEnemy and obj.team < 300 then
             if (not range or obj.distance < range + (bbox and obj.boundingRadius or 0)) and (not func or func(obj)) then
-                table.insert(result, obj)
+                table_insert(result, obj)
             end
         end
     end
@@ -2747,7 +2852,7 @@ function Object:GetAllyMinions(range, bbox, visible, immortal, func)
         local obj = Game.Minion(i)
         if self:IsValid(obj, Obj_AI_Minion, visible, immortal) and obj.isAlly and obj.team < 300 then
             if (not range or obj.distance < range + (bbox and obj.boundingRadius or 0)) and (not func or func(obj)) then
-                table.insert(result, obj)
+                table_insert(result, obj)
             end
         end
     end
@@ -2759,10 +2864,10 @@ function Object:GetOtherMinions(range, bbox, visible, immortal, func)
     local a = self:GetOtherAllyMinions(range, bbox, visible, immortal, func)
     local b = self:GetOtherEnemyMinions(range, bbox, visible, immortal, func)
     for i = 1, #a do
-        table.insert(result, a[i])
+        table_insert(result, a[i])
     end
     for i = 1, #b do
-        table.insert(result, b[i])
+        table_insert(result, b[i])
     end
     return result
 end
@@ -2773,7 +2878,7 @@ function Object:GetOtherAllyMinions(range, bbox, visible, immortal, func)
         local obj = Game.Ward(i)
         if self:IsValid(obj, nil, visible, immortal) and obj.isAlly then
             if (not range or obj.distance < range + (bbox and obj.boundingRadius or 0)) and (not func or func(obj)) then
-                table.insert(result, obj)
+                table_insert(result, obj)
             end
         end
     end
@@ -2786,7 +2891,7 @@ function Object:GetOtherEnemyMinions(range, bbox, visible, immortal, func)
         local obj = Game.Ward(i)
         if self:IsValid(obj, nil, visible, immortal) and obj.isEnemy then
             if (not range or obj.distance < range + (bbox and obj.boundingRadius or 0)) and (not func or func(obj)) then
-                table.insert(result, obj)
+                table_insert(result, obj)
             end
         end
     end
@@ -2799,7 +2904,7 @@ function Object:GetMonsters(range, bbox, visible, immortal, func)
         local obj = Game.Minion(i)
         if self:IsValid(obj, Obj_AI_Minion, visible, immortal) and obj.team == 300 then
             if (not range or obj.distance < range + (bbox and obj.boundingRadius or 0)) and (not func or func(obj)) then
-                table.insert(result, obj)
+                table_insert(result, obj)
             end
         end
     end
@@ -2811,10 +2916,10 @@ function Object:GetTurrets(range, bbox, visible, immortal, func)
     local a = self:GetEnemyTurrets(range, bbox, visible, immortal, func)
     local b = self:GetAllyTurrets(range, bbox, visible, immortal, func)
     for i = 1, #a do
-        table.insert(result, a[i])
+        table_insert(result, a[i])
     end
     for i = 1, #b do
-        table.insert(result, b[i])
+        table_insert(result, b[i])
     end
     return result
 end
@@ -2825,7 +2930,7 @@ function Object:GetEnemyTurrets(range, bbox, visible, immortal, func)
         local obj = Game.Turret(i)
         if self:IsValid(obj, Obj_AI_Turret, visible, immortal) and obj.isEnemy then
             if (not range or obj.distance < range + (bbox and obj.boundingRadius or 0)) and (not func or func(obj)) then
-                table.insert(result, obj)
+                table_insert(result, obj)
             end
         end
     end
@@ -2838,7 +2943,7 @@ function Object:GetAllyTurrets(range, bbox, visible, immortal, func)
         local obj = Game.Turret(i)
         if self:IsValid(obj, Obj_AI_Turret, visible, immortal) and obj.isAlly then
             if (not range or obj.distance < range + (bbox and obj.boundingRadius or 0)) and (not func or func(obj)) then
-                table.insert(result, obj)
+                table_insert(result, obj)
             end
         end
     end
@@ -2850,7 +2955,7 @@ function Object:GetEnemyBuildings(range, bbox, visible, immortal, func)
     for i, obj in pairs(self.EnemyBuildings) do
         if self:IsValid(obj, nil, visible, immortal) then
             if (not range or obj.distance < range + (bbox and Data:GetBuildingBBox(obj) or 0)) and (not func or func(obj)) then
-                table.insert(result, obj)
+                table_insert(result, obj)
             end
         end
     end
@@ -2862,7 +2967,7 @@ function Object:GetAllyBuildings(range, bbox, visible, immortal, func)
     for i, obj in pairs(self.AllyBuildings) do
         if self:IsValid(obj, nil, visible, immortal) then
             if (not range or obj.distance < range + (bbox and Data:GetBuildingBBox(obj) or 0)) and (not func or func(obj)) then
-                table.insert(result, obj)
+                table_insert(result, obj)
             end
         end
     end
@@ -2874,14 +2979,14 @@ function Object:GetAllStructures(range, bbox, visible, immortal, func)
     for i, obj in pairs(self.AllyBuildings) do
         if self:IsValid(obj, nil, visible, immortal) then
             if (not range or obj.distance < range + (bbox and Data:GetBuildingBBox(obj) or 0)) and (not func or func(obj)) then
-                table.insert(result, obj)
+                table_insert(result, obj)
             end
         end
     end
     for i, obj in pairs(self.EnemyBuildings) do
         if self:IsValid(obj, nil, visible, immortal) then
             if (not range or obj.distance < range + (bbox and Data:GetBuildingBBox(obj) or 0)) and (not func or func(obj)) then
-                table.insert(result, obj)
+                table_insert(result, obj)
             end
         end
     end
@@ -2889,7 +2994,7 @@ function Object:GetAllStructures(range, bbox, visible, immortal, func)
         local obj = Game.Turret(i)
         if self:IsValid(obj, Obj_AI_Turret, visible, immortal) then
             if (not range or obj.distance < range + (bbox and obj.boundingRadius or 0)) and (not func or func(obj)) then
-                table.insert(result, obj)
+                table_insert(result, obj)
             end
         end
     end
@@ -2983,7 +3088,7 @@ function Target:Init()
     
     if self.StackBuffs[myHero.charName] then
         for i, buffName in pairs(self.StackBuffs[myHero.charName]) do
-            table.insert(self.ActiveStackBuffs, buffName)
+            table_insert(self.ActiveStackBuffs, buffName)
         end
     end
     
@@ -2995,12 +3100,12 @@ function Target:Init()
             local aDef, bDef = 0, 0
             if self.CurrentDamage == Damage.DAMAGE_TYPE_MAGICAL then
                 local magicPen, magicPenPercent = myHero.magicPen, myHero.magicPenPercent
-                aDef = math.max(0, aMultiplier * (a.magicResist - magicPen) * magicPenPercent)
-                bDef = math.max(0, bMultiplier * (b.magicResist - magicPen) * magicPenPercent)
+                aDef = math_max(0, aMultiplier * (a.magicResist - magicPen) * magicPenPercent)
+                bDef = math_max(0, bMultiplier * (b.magicResist - magicPen) * magicPenPercent)
             elseif self.CurrentDamage == Damage.DAMAGE_TYPE_PHYSICAL then
                 local armorPen, bonusArmorPenPercent = myHero.armorPen, myHero.bonusArmorPenPercent
-                aDef = math.max(0, aMultiplier * (a.armor - armorPen) * bonusArmorPenPercent)
-                bDef = math.max(0, bMultiplier * (b.armor - armorPen) * bonusArmorPenPercent)
+                aDef = math_max(0, aMultiplier * (a.armor - armorPen) * bonusArmorPenPercent)
+                bDef = math_max(0, bMultiplier * (b.armor - armorPen) * bonusArmorPenPercent)
             end
             return (a.health * aMultiplier * ((100 + aDef) / 100)) - a.ap - (a.totalDamage * a.attackSpeed * 2) < (b.health * bMultiplier * ((100 + bDef) / 100)) - b.ap - (b.totalDamage * b.attackSpeed * 2)
         end,
@@ -3030,14 +3135,14 @@ function Target:Init()
             for i, buffName in pairs(self.ActiveStackBuffs) do
                 local buff = Buff:GetBuff(a, buffName)
                 if buff then
-                    aMax = math.max(aMax, math.max(buff.Count, buff.Stacks))
+                    aMax = math_max(aMax, math_max(buff.Count, buff.Stacks))
                 end
             end
             local bMax = 0
             for i, buffName in pairs(self.ActiveStackBuffs) do
                 local buff = Buff:GetBuff(b, buffName)
                 if buff then
-                    bMax = math.max(bMax, math.max(buff.Count, buff.Stacks))
+                    bMax = math_max(bMax, math_max(buff.Count, buff.Stacks))
                 end
             end
             return aMax > bMax
@@ -3056,8 +3161,8 @@ function Target:Init()
             local bMultiplier = 1.75 - self:GetPriority(b) * 0.15
             local aDef, bDef = 0, 0
             local magicPen, magicPenPercent = myHero.magicPen, myHero.magicPenPercent
-            aDef = math.max(0, aMultiplier * (a.magicResist - magicPen) * magicPenPercent)
-            bDef = math.max(0, bMultiplier * (b.magicResist - magicPen) * magicPenPercent)
+            aDef = math_max(0, aMultiplier * (a.magicResist - magicPen) * magicPenPercent)
+            bDef = math_max(0, bMultiplier * (b.magicResist - magicPen) * magicPenPercent)
             return (a.health * aMultiplier * ((100 + aDef) / 100)) - a.ap - (a.totalDamage * a.attackSpeed * 2) < (b.health * bMultiplier * ((100 + bDef) / 100)) - b.ap - (b.totalDamage * b.attackSpeed * 2)
         end,
         
@@ -3066,8 +3171,8 @@ function Target:Init()
             local bMultiplier = 1.75 - self:GetPriority(b) * 0.15
             local aDef, bDef = 0, 0
             local armorPen, bonusArmorPenPercent = myHero.armorPen, myHero.bonusArmorPenPercent
-            aDef = math.max(0, aMultiplier * (a.armor - armorPen) * bonusArmorPenPercent)
-            bDef = math.max(0, bMultiplier * (b.armor - armorPen) * bonusArmorPenPercent)
+            aDef = math_max(0, aMultiplier * (a.armor - armorPen) * bonusArmorPenPercent)
+            bDef = math_max(0, bMultiplier * (b.armor - armorPen) * bonusArmorPenPercent)
             return (a.health * aMultiplier * ((100 + aDef) / 100)) - a.ap - (a.totalDamage * a.attackSpeed * 2) < (b.health * bMultiplier * ((100 + bDef) / 100)) - b.ap - (b.totalDamage * b.attackSpeed * 2)
         end,
     }
@@ -3075,13 +3180,13 @@ function Target:Init()
     self.CurrentSortMode = self.MenuTableSortMode:Value()
     self.CurrentSort = self.SortModes[self.CurrentSortMode]
     
-    table.insert(SDK.Load, function()
+    table_insert(SDK.Load, function()
         self:OnLoad()
     end)
 end
 
 function Target:OnLoad()
-    table.insert(SDK.WndMsg, function(msg, wParam)
+    table_insert(SDK.WndMsg, function(msg, wParam)
         if msg == WM_LBUTTONDOWN and self.MenuCheckSelected:Value() and GetTickCount() > self.SelectionTick + 100 then
             self.Selected = nil
             local num = 10000000
@@ -3099,13 +3204,13 @@ function Target:OnLoad()
         end
     end)
     
-    table.insert(SDK.Draw, function()
+    table_insert(SDK.Draw, function()
         if self.MenuDrawSelected:Value() and Object:IsValid(self.Selected, Obj_AI_Hero, true) then
             Draw.Circle(self.Selected.pos, 150, 1, Color.DarkRed)
         end
     end)
     
-    table.insert(SDK.Tick, function()
+    table_insert(SDK.Tick, function()
         local sortMode = self.MenuTableSortMode:Value()
         if sortMode ~= self.CurrentSortMode then
             self.CurrentSortMode = sortMode
@@ -3128,7 +3233,7 @@ function Target:GetTarget(a, dmgType, bbox, visible, immortal, jaxE, func)
                 return self.Selected
             end
         else
-            table.sort(a, function(i, j) return i.distance > j.distance end)
+            table_sort(a, function(i, j) return i.distance > j.distance end)
             if #a > 0 and self.Selected.distance <= a[1].distance then
                 return self.Selected
             end
@@ -3155,9 +3260,9 @@ function Target:GetTarget(a, dmgType, bbox, visible, immortal, jaxE, func)
         if sortMode == self.SORT_MOST_STACK then
             a = stackA
         end
-        table.sort(a, self.SortModes[sortMode])
+        table_sort(a, self.SortModes[sortMode])
     else
-        table.sort(a, self.CurrentSort)
+        table_sort(a, self.CurrentSort)
     end
     
     return (#a == 0 and nil or a[1])
@@ -3177,7 +3282,7 @@ end
 function Target:GetKalistaTarget()
     local range, radius, objects
     
-    range = myHero.range - 35
+    range = myHero.range
     radius = myHero.boundingRadius
     
     objects = Object:GetEnemyMinions(range + radius, true, true, true)
@@ -3199,13 +3304,34 @@ function Target:GetKalistaTarget()
 end
 
 function Target:GetComboTarget(dmgType)
-    local t, range
+    local t, range, path, isMoving, predPos
     
     dmgType = dmgType or Damage.DAMAGE_TYPE_PHYSICAL
-    range = myHero.range + myHero.boundingRadius - 35
+    range = myHero.range + myHero.boundingRadius
+    path = myHero.pathing
+    isMoving = path.hasMovePath
+    if isMoving then
+        local result = {}
+        table_insert(result, Math:Get2D(myHero.pos))
+        if path.isDashing then
+            table_insert(result, Math:Get2D(path.endPos))
+        else
+            for i = path.pathIndex, path.pathCount do
+                table_insert(result, Math:Get2D(myHero:GetPath(i)))
+            end
+        end
+        predPos = Path:CutPath(result, myHero.ms * (Data:GetLatency() + 0.06))[1]
+    end
     
     t = self:GetTarget(Object:GetEnemyHeroes(false, false, true, true, true, function(hero)
-        if hero.distance < range + ((Object.IsCaitlyn and Buff:HasBuff(hero, 'caitlynyordletrapinternal')) and 600 or hero.boundingRadius) then
+        local range2 = range + ((Object.IsCaitlyn and Buff:HasBuff(hero, 'caitlynyordletrapinternal')) and 600 or hero.boundingRadius)
+        if hero.distance <= range2 then
+            if isMoving then
+                if Math:GetDistance(predPos, hero.pos) > range2 then
+                    --print('hoho')
+                    return false
+                end
+            end
             return true
         end
         return false
@@ -3254,7 +3380,7 @@ function Health:Init()
 end
 
 function Health:AddSpell(class)
-    table.insert(self.Spells, class)
+    table_insert(self.Spells, class)
 end
 
 function Health:OnTick()
@@ -3268,23 +3394,23 @@ function Health:OnTick()
         self.StaticAutoAttackDamage = nil
         
         for i = 1, #self.FarmMinions do
-            table.remove(self.FarmMinions, i)
+            table_remove(self.FarmMinions, i)
         end
         
         for i = 1, #self.EnemyWardsInAttackRange do
-            table.remove(self.EnemyWardsInAttackRange, i)
+            table_remove(self.EnemyWardsInAttackRange, i)
         end
         
         for i = 1, #self.EnemyMinionsInAttackRange do
-            table.remove(self.EnemyMinionsInAttackRange, i)
+            table_remove(self.EnemyMinionsInAttackRange, i)
         end
         
         for i = 1, #self.JungleMinionsInAttackRange do
-            table.remove(self.JungleMinionsInAttackRange, i)
+            table_remove(self.JungleMinionsInAttackRange, i)
         end
         
         for i = 1, #self.EnemyStructuresInAttackRange do
-            table.remove(self.EnemyStructuresInAttackRange, i)
+            table_remove(self.EnemyStructuresInAttackRange, i)
         end
         
         for k, v in pairs(self.AttackersDamage) do
@@ -3323,7 +3449,7 @@ function Health:OnTick()
     self.StaticAutoAttackDamage = Damage:GetStaticAutoAttackDamage(myHero, true)
     
     -- SET OBJECTS
-    attackRange = myHero.range + myHero.boundingRadius - 35
+    attackRange = myHero.range + myHero.boundingRadius
     
     for i = 1, Game.MinionCount() do
         local obj = Game.Minion(i)
@@ -3335,11 +3461,11 @@ function Health:OnTick()
                 self.AllyMinionsHandles[handle] = obj
             elseif team == Data.EnemyTeam then
                 if not obj.isImmortal and Math:IsInRange(myHero, obj, attackRange + obj.boundingRadius) then
-                    table.insert(self.EnemyMinionsInAttackRange, obj)
+                    table_insert(self.EnemyMinionsInAttackRange, obj)
                 end
             elseif team == Data.JungleTeam then
                 if not obj.isImmortal and Math:IsInRange(myHero, obj, attackRange + obj.boundingRadius) then
-                    table.insert(self.JungleMinionsInAttackRange, obj)
+                    table_insert(self.JungleMinionsInAttackRange, obj)
                 end
             end
         end
@@ -3371,7 +3497,7 @@ function Health:OnTick()
             end
             
             if not obj.isImmortal and Math:IsInRange(myHero, obj, attackRange + objRadius) then
-                table.insert(self.EnemyStructuresInAttackRange, obj)
+                table_insert(self.EnemyStructuresInAttackRange, obj)
             end
         end
     end
@@ -3379,7 +3505,7 @@ function Health:OnTick()
     for i = 1, Game.WardCount() do
         local obj = Game.Ward(i)
         if obj and obj.team == Data.EnemyTeam and obj.visible and obj.alive and Math:IsInRange(myHero, obj, attackRange + 35) then
-            table.insert(self.EnemyWardsInAttackRange, obj)
+            table_insert(self.EnemyWardsInAttackRange, obj)
         end
     end
     
@@ -3415,7 +3541,7 @@ function Health:OnTick()
     anim = Attack:GetAnimation()
     for i = 1, #self.EnemyMinionsInAttackRange do
         local target = self.EnemyMinionsInAttackRange[i]
-        table.insert(self.FarmMinions, self:SetLastHitable(target, anim, time + target.distance / speed, Damage:GetAutoAttackDamage(myHero, target, self.StaticAutoAttackDamage)))
+        table_insert(self.FarmMinions, self:SetLastHitable(target, anim, time + target.distance / speed, Damage:GetAutoAttackDamage(myHero, target, self.StaticAutoAttackDamage)))
     end
     
     -- SPELLS
@@ -3430,9 +3556,9 @@ function Health:OnTick()
             local minion = args.Minion
             if Object:IsValid(minion, Obj_AI_Minion, true, true) then
                 if args.LastHitable then
-                    Draw.Circle(minion.pos, math.max(65, minion.boundingRadius), 2, Color.LastHitable)
+                    Draw.Circle(minion.pos, math_max(65, minion.boundingRadius), 2, Color.LastHitable)
                 elseif args.AlmostLastHitable then
-                    Draw.Circle(minion.pos, math.max(65, minion.boundingRadius), 2, Color.AlmostLastHitable)
+                    Draw.Circle(minion.pos, math_max(65, minion.boundingRadius), 2, Color.AlmostLastHitable)
                 end
             end
         end
@@ -3492,7 +3618,7 @@ function Health:LocalGetPrediction(target, time)
     
     for attackerHandle, attack in pairs(self.ActiveAttacks) do
         local attacker = self.Handles[attackerHandle]
-        if attacker and attack.Target == handle then
+        if attacker and attacker.valid and attacker.visible and attacker.alive and attack.Target == handle then
             local speed, startT, flyT, endT, damage
             speed = attack.Speed
             startT = attack.StartTime
@@ -3531,6 +3657,7 @@ function Health:LocalGetPrediction(target, time)
                     c = c + 1
                     if c > 10 then
                         print("ERROR LANECLEAR!")
+                        health = self.TargetsHealth[handle]
                         break
                     end
                 end
@@ -3541,7 +3668,7 @@ function Health:LocalGetPrediction(target, time)
     -- laneClear
     for attackerHandle, obj in pairs(self.AllyMinionsHandles) do
         
-        if handles[attackerHandle] == nil then
+        if handles[attackerHandle] == nil and obj and obj.valid and obj.visible and obj.alive then
             local aaData = obj.attackData
             local isMoving = obj.pathing.hasMovePath
             
@@ -3574,6 +3701,7 @@ function Health:LocalGetPrediction(target, time)
                             c = c + 1
                             if c > 10 then
                                 print("ERROR LANECLEAR!")
+                                health = self.TargetsHealth[handle]
                                 break
                             end
                         end
@@ -3713,7 +3841,7 @@ end
 
 function Health:GetJungleTarget()
     if #self.JungleMinionsInAttackRange > 0 then
-        table.sort(self.JungleMinionsInAttackRange, function(a, b) return a.maxHealth > b.maxHealth end);
+        table_sort(self.JungleMinionsInAttackRange, function(a, b) return a.maxHealth > b.maxHealth end);
         return self.JungleMinionsInAttackRange[1]
     end
     
@@ -3920,28 +4048,28 @@ function Cursor:Init()
         return true
     end
     
-    table.insert(SDK.Load, function()
+    table_insert(SDK.Load, function()
         self:OnLoad()
     end)
 end
 
 function Cursor:OnLoad()
-    table.insert(SDK.Tick, function()
+    table_insert(SDK.Tick, function()
         self.Targets = {}
         self.TargetsBool = true
     end)
     
-    table.insert(SDK.FastTick, function()
+    table_insert(SDK.FastTick, function()
         self:OnTick()
     end)
     
-    table.insert(SDK.Draw, function()
+    table_insert(SDK.Draw, function()
         if self.MenuDrawCursor:Value() then
             Draw.Circle(mousePos, 150, 2, Color.Cursor)
         end
     end)
     
-    table.insert(SDK.WndMsg, function(msg, wParam)
+    table_insert(SDK.WndMsg, function(msg, wParam)
         self:WndMsg(msg, wParam)
     end)
 end
@@ -4060,19 +4188,19 @@ function Cursor:IsCursorOnTarget(pos)
         for i = 1, Game.HeroCount() do
             local unit = Game.Hero(i)
             if unit and unit.valid and unit.visible and not unit.isAlly and unit.alive and unit.isTargetable and unit.distance < 2500 then
-                table.insert(self.Targets, {unit.pos, unit.boundingRadius + 180})
+                table_insert(self.Targets, {unit.pos, unit.boundingRadius + 180})
             end
         end
         for i = 1, Game.MinionCount() do
             local unit = Game.Minion(i)
             if unit and unit.valid and unit.visible and not unit.isAlly and unit.alive and unit.isTargetable and unit.distance < 2500 then
-                table.insert(self.Targets, {unit.pos, unit.boundingRadius + 120})
+                table_insert(self.Targets, {unit.pos, unit.boundingRadius + 120})
             end
         end
         for i = 1, Game.TurretCount() do
             local unit = Game.Turret(i)
             if unit and unit.valid and unit.visible and not unit.isAlly and unit.alive and unit.isTargetable and unit.distance < 2500 then
-                table.insert(self.Targets, {unit.pos, unit.boundingRadius + 120})
+                table_insert(self.Targets, {unit.pos, unit.boundingRadius + 120})
             end
         end
         self.TargetsBool = false
@@ -4090,7 +4218,7 @@ function Cursor:GetHumanizer()
     if self.MenuRandomHumanizer.Enabled:Value() then
         local min = self.MenuRandomHumanizer.Min:Value()
         local max = self.MenuRandomHumanizer.Max:Value()
-        return max <= min and min or math.random(min, max)
+        return max <= min and min or math_random(min, max)
     end
     return self.MenuOrbwalker.MovementDelay:Value()
 end
@@ -4133,18 +4261,12 @@ Attack =
     TestCount = 0,
     TestStartTime = 0,
     
+    IsJhin = myHero.charName == 'Jhin',
+    IsGraves = myHero.charName == 'Graves',
+
     SpecialWindup = Data.SpecialWindup[myHero.charName:lower()],
-    
-    HasLethalTempo = false,
-    LethalTempoTimer = 0,
-    
-    AttackData =
-    {
-        windup = myHero.attackData.windUpTime,
-        anim = myHero.attackData.animationTime,
-        tickwindup = os.clock(),
-        tickanim = os.clock(),
-    },
+    BaseAttackSpeed = Data.HEROES[Data.HeroName][3],
+    BaseWindupTime = nil,
     
     Reset = false,
     ServerStart = 0,
@@ -4175,19 +4297,12 @@ function Attack:OnTick()
     end
     Draw.Text(text, mepos.x, mepos.y)]]
     
-    if Buff:HasBuffContainsName(myHero, 'lethaltempoemp') then
-        self.HasLethalTempo = true
-        self.LethalTempoTimer = GetTickCount()
-    elseif GetTickCount() > self.LethalTempoTimer + 1000 then
-        self.HasLethalTempo = false
-    end
-    
     if Data:CanResetAttack() and Orbwalker.Menu.General.AttackResetting:Value() then
         self.Reset = true
     end
     
     local spell = myHero.activeSpell
-    if spell and spell.valid and spell.target > 0 and spell.castEndTime > self.CastEndTime and Data:IsAttack(spell.name) then
+    if spell and spell.valid and spell.target > 0 and spell.castEndTime > self.CastEndTime and (spell.isAutoAttack or Data:IsAttack(spell.name)) then
         -- spell.isAutoAttack then  and Game.Timer() < self.LocalStart + 0.2
         
         for i = 1, #Orbwalker.OnAttackCb do
@@ -4198,7 +4313,7 @@ function Attack:OnTick()
         self.AttackWindup = spell.windup
         self.ServerStart = self.CastEndTime - self.AttackWindup
         self.AttackAnimation = spell.animation
-        
+
         if self.TestDamage then
             if self.TestCount == 0 then
                 self.TestStartTime = Game.Timer()
@@ -4214,34 +4329,82 @@ function Attack:OnTick()
 end
 
 function Attack:GetWindup()
+    if self.IsJhin then
+        return self.AttackWindup
+    end
+
+    if self.IsGraves then
+        return myHero.attackData.windUpTime * 0.2
+    end
+
     if self.SpecialWindup then
         local windup = self.SpecialWindup()
         if windup then
             return windup
         end
     end
-    
-    if self.HasLethalTempo and not self.IsSenna then
-        return myHero.attackData.windUpTime
+
+    if self.BaseWindupTime then
+        return 1 / (myHero.attackSpeed * self.BaseAttackSpeed) / self.BaseWindupTime
     end
-    
-    return self.AttackWindup
+
+    local data = myHero.attackData
+    if data.animationTime > 0 and data.windUpTime > 0 then
+        self.BaseWindupTime = data.animationTime / data.windUpTime
+    end
+
+    return myHero.attackData.windUpTime
+
+--[[
+
+    local x1 = 'x1: ' .. tostring(myHero.attackData.windUpTime)
+    local x2 = 'x2: ' .. tostring(self.AttackWindup)
+    print(x1 .. ', ' .. x2)
+
+    print(1 / (self.AttackWindup * myHero.attackSpeed))
+    print(myHero.attackSpeed * self.BaseAttackSpeed)
+    print(self.AttackAnimation/self.AttackWindup)
+    local num = self.AttackAnimation / self.AttackWindup--4.9525547301856
+    local wind = self.AttackAnimation / num
+    print(num)
+]]
 end
 
 function Attack:GetAnimation()
-    if self.HasLethalTempo and not self.IsSenna then
-        --print(myHero.attackData.animationTime .. ' ' .. self.AttackAnimation)
-        --print(myHero.attackSpeed * (1 / myHero.attackData.animationTime / myHero.attackSpeed))
-        return myHero.attackData.animationTime
+    --[[local x1 = 'x1: ' .. tostring(1 / (myHero.attackSpeed * self.BaseAttackSpeed))
+    local x2 = 'x2: ' .. tostring(self.AttackAnimation)
+    print(x1 .. ', ' .. x2)
+
+    print('here: ' .. myHero.attackData.animationTime .. ' ' .. self.AttackAnimation)
+    print(myHero.attackSpeed * (1 / myHero.attackData.animationTime / myHero.attackSpeed))
+    print(myHero.attackSpeed / myHero.attackData.animationTime)
+    print(1 / (myHero.attackSpeed * 0.679))
+
+    self.BaseAnimationTime = 1 / (self.AttackAnimation * myHero.attackSpeed)
+    self.BaseWindupTime = 1 / (myHero.attackData.windUpTime * myHero.attackSpeed)
+    print('base: ' .. self.BaseAnimationTime)
+
+    local z = myHero.attackData.animationTime-self.AttackAnimation
+    local x = math_abs(z)
+    if x > 0.05 then
+        print('anim: ' .. tostring(x) .. ' ' .. tostring(z) .. ' ' .. tostring(myHero.attackSpeed))
+    end]]
+
+    if self.IsJhin then
+        return self.AttackAnimation
     end
-    
-    return self.AttackAnimation
+
+    if self.IsGraves then
+        return myHero.attackData.animationTime * 0.9
+    end
+
+    return 1 / (myHero.attackSpeed * self.BaseAttackSpeed)
 end
 
 function Attack:GetProjectileSpeed()
     -- MELEE
     if Data.IsHeroMelee or (Data.IsHeroSpecialMelee and Data.IsHeroSpecialMelee()) then
-        return math.huge
+        return math_huge
     end
     
     -- SPECIAL
@@ -4259,7 +4422,7 @@ function Attack:GetProjectileSpeed()
     end
     
     -- MELEE
-    return math.huge
+    return math_huge
 end
 
 function Attack:IsReady()
@@ -4281,7 +4444,7 @@ function Attack:IsActive(num)
     num = num or 0
     
     if self.CastEndTime > self.LocalStart then
-        if Game.Timer() >= self.ServerStart + self:GetWindup() - Data:GetLatency() + 0.025 + num + Orbwalker.Menu.General.ExtraWindUpTime:Value() * 0.001 then
+        if Game.Timer() >= self.ServerStart + self:GetWindup() - Data:GetLatency() + 0.025 + num + (Orbwalker.Menu.General.ExtraWindUpTime:Value() * 0.001) then
             return false
         end
         return true
@@ -4300,6 +4463,8 @@ end
 
 Orbwalker =
 {
+    LastTarget = nil,
+
     CanHoldPosition = true,
     
     PostAttackTimer = 0,
@@ -4361,13 +4526,13 @@ function Orbwalker:Init()
     self.CanAttackC = function() return true end
     self.CanMoveC = function() return true end
     
-    table.insert(SDK.Load, function()
+    table_insert(SDK.Load, function()
         self:OnLoad()
     end)
 end
 
 function Orbwalker:OnLoad()
-    table.insert(SDK.Draw, function()
+    table_insert(SDK.Draw, function()
         
         if not self.Menu.Enabled:Value() then
             return
@@ -4391,7 +4556,7 @@ function Orbwalker:OnLoad()
         end
     end)
     
-    table.insert(SDK.FastTick, function()
+    table_insert(SDK.FastTick, function()
         if not self.Menu.Enabled:Value() then
             return
         end
@@ -4420,7 +4585,7 @@ function Orbwalker:OnLoad()
 end
 
 function Orbwalker:RegisterMenuKey(mode, key)
-    table.insert(self.MenuKeys[mode], key)
+    table_insert(self.MenuKeys[mode], key)
 end
 
 function Orbwalker:GetModes()
@@ -4453,23 +4618,23 @@ function Orbwalker:HasMode(mode)
 end
 
 function Orbwalker:OnPreAttack(func)
-    table.insert(self.OnPreAttackCb, func)
+    table_insert(self.OnPreAttackCb, func)
 end
 
 function Orbwalker:OnPostAttack(func)
-    table.insert(self.OnPostAttackCb, func)
+    table_insert(self.OnPostAttackCb, func)
 end
 
 function Orbwalker:OnPostAttackTick(func)
-    table.insert(self.OnPostAttackTickCb, func)
+    table_insert(self.OnPostAttackTickCb, func)
 end
 
 function Orbwalker:OnAttack(func)
-    table.insert(self.OnAttackCb, func)
+    table_insert(self.OnAttackCb, func)
 end
 
 function Orbwalker:OnPreMovement(func)
-    table.insert(self.OnMoveCb, func)
+    table_insert(self.OnMoveCb, func)
 end
 
 function Orbwalker:CanAttackEvent(func)
@@ -4579,7 +4744,7 @@ function Orbwalker:MeleeLogic()
     
     process = true
     position = nil
-    aarange = myHero.range + myHero.boundingRadius - 35
+    aarange = myHero.range + myHero.boundingRadius
     
     aatarget = Target:GetTarget(Object:GetEnemyHeroes(aarange, true, true, true, true), Damage.DAMAGE_TYPE_PHYSICAL)
     
@@ -4616,7 +4781,7 @@ function Orbwalker:MeleeLogic()
 end
 
 function Orbwalker:OnUnkillableMinion(cb)
-    table.insert(Health.OnUnkillableMinionCallbacks, cb);
+    table_insert(Health.OnUnkillableMinionCallbacks, cb);
 end
 
 function Orbwalker:Attack(unit)
@@ -4624,7 +4789,7 @@ function Orbwalker:Attack(unit)
         return
     end
     
-    if self.AttackEnabled and unit ~= nil and unit.pos ~= nil and unit.pos:ToScreen().onScreen and self:CanAttack() then
+    if self.AttackEnabled and unit and unit.valid and unit.visible and unit.pos:ToScreen().onScreen and self:CanAttack() then
         local args = {Target = unit, Process = true}
         
         for i = 1, #self.OnPreAttackCb do
@@ -4632,10 +4797,13 @@ function Orbwalker:Attack(unit)
         end
         
         if args.Process then
-            if args.Target and Control.Attack(args.Target) then
-                Attack.Reset = false
-                Attack.LocalStart = Game.Timer()
-                self.PostAttackBool = true
+            if args.Target then
+                self.LastTarget = args.Target
+                if Control.Attack(args.Target) then
+                    Attack.Reset = false
+                    Attack.LocalStart = Game.Timer()
+                    self.PostAttackBool = true
+                end
             end
             return true
         end
