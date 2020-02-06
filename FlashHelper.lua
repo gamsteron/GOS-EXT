@@ -28,7 +28,7 @@ local bushPositionsHA = {
 }
 
 -- Main Menu
-local Menu = MenuElement({type = MENU, id = "PMenuFH", name = "Flash Helper Gamsteron Edition", leftIcon = menuIcon})
+local Menu = MenuElement({type = MENU, id = "PMenuFH", name = "Flash Helper Gamsteron Edition"})
 Menu:MenuElement({id = "Enabled", name = "Enabled", value = true})
 Menu:MenuElement({id = "Extended", name = "Extend to maximum range", value = true})
 ---
@@ -136,7 +136,7 @@ Callback.Add("Load", function()
             print("Flash Helper | Flashing!")
             local pos
             if (Menu.Extended:Value()) then
-                pos = myHero.pos:Extended(mousePos, 500)
+                pos = myHero.pos:Extended(mousePos, 800)
             end
             Control.Flash(flashHK, pos)
         end
