@@ -136,7 +136,7 @@ Callback.Add("Load", function()
             print("Flash Helper | Flashing!")
             local pos
             if (Menu.Extended:Value()) then
-                pos = myHero.pos:Extended(mousePos, 800)
+                pos = myHero.pos:Extended(mousePos, 500)
             end
             Control.Flash(flashHK, pos)
         end
