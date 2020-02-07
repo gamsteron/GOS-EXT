@@ -4345,7 +4345,7 @@ function Attack:GetWindup()
     end
 
     if self.BaseWindupTime then
-        return 1 / (myHero.attackSpeed * self.BaseAttackSpeed) / self.BaseWindupTime
+        return math_max(self.AttackWindup, 1 / (myHero.attackSpeed * self.BaseAttackSpeed) / self.BaseWindupTime)
     end
 
     local data = myHero.attackData
@@ -4353,43 +4353,10 @@ function Attack:GetWindup()
         self.BaseWindupTime = data.animationTime / data.windUpTime
     end
 
-    return myHero.attackData.windUpTime
-
---[[
-
-    local x1 = 'x1: ' .. tostring(myHero.attackData.windUpTime)
-    local x2 = 'x2: ' .. tostring(self.AttackWindup)
-    print(x1 .. ', ' .. x2)
-
-    print(1 / (self.AttackWindup * myHero.attackSpeed))
-    print(myHero.attackSpeed * self.BaseAttackSpeed)
-    print(self.AttackAnimation/self.AttackWindup)
-    local num = self.AttackAnimation / self.AttackWindup--4.9525547301856
-    local wind = self.AttackAnimation / num
-    print(num)
-]]
+    return math_max(self.AttackWindup, myHero.attackData.windUpTime)
 end
 
 function Attack:GetAnimation()
-    --[[local x1 = 'x1: ' .. tostring(1 / (myHero.attackSpeed * self.BaseAttackSpeed))
-    local x2 = 'x2: ' .. tostring(self.AttackAnimation)
-    print(x1 .. ', ' .. x2)
-
-    print('here: ' .. myHero.attackData.animationTime .. ' ' .. self.AttackAnimation)
-    print(myHero.attackSpeed * (1 / myHero.attackData.animationTime / myHero.attackSpeed))
-    print(myHero.attackSpeed / myHero.attackData.animationTime)
-    print(1 / (myHero.attackSpeed * 0.679))
-
-    self.BaseAnimationTime = 1 / (self.AttackAnimation * myHero.attackSpeed)
-    self.BaseWindupTime = 1 / (myHero.attackData.windUpTime * myHero.attackSpeed)
-    print('base: ' .. self.BaseAnimationTime)
-
-    local z = myHero.attackData.animationTime-self.AttackAnimation
-    local x = math_abs(z)
-    if x > 0.05 then
-        print('anim: ' .. tostring(x) .. ' ' .. tostring(z) .. ' ' .. tostring(myHero.attackSpeed))
-    end]]
-
     if self.IsJhin then
         return self.AttackAnimation
     end
