@@ -1,6 +1,6 @@
 --https://discord.gg/wXfvEKV
 
-local Version = '1.32'
+local Version = '1.33'
 
 if _G.SDK then return end
 
@@ -1769,7 +1769,7 @@ end
 
 function Data:IsUnit(unit)
     local type = unit.type
-    if type == Obj_AI_Hero or type == Obj_AI_Minion or type == Obj_AI_Turret then
+    if type == Obj_AI_Hero or type == Obj_AI_Minion or type == Obj_AI_Turret or type == Obj_AI_Barracks or type == Obj_AI_Nexus then
         return true
     end
     return false
@@ -2748,7 +2748,7 @@ function Object:IsValid(obj, type, visible, immortal, jaxE)
     if objType == nil or (type and type ~= objType) then
         return false
     end
-    if (objType == Obj_AI_Hero or objType == Obj_AI_Minion or objType == Obj_AI_Turret) and not obj.valid then
+    if (objType == Obj_AI_Hero or objType == Obj_AI_Minion or objType == Obj_AI_Turret or objType == Obj_AI_Barracks or objType == Obj_AI_Nexus) and not obj.valid then
         return false
     end
     if not obj.visible then
