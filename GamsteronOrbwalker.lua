@@ -1,6 +1,6 @@
 --https://discord.gg/wXfvEKV
 
-local Version = '1.31'
+local Version = '1.32'
 
 if _G.SDK then return end
 
@@ -126,13 +126,11 @@ function Menu:Init
     self.Orbwalker.General:MenuElement({id = 'LaneClearHeroes', name = 'LaneClear Heroes', value = true})
     self.Orbwalker.General:MenuElement({id = 'StickToTarget', name = 'Stick To Target: Only Melee', value = false})
     self.Orbwalker.General:MenuElement({id = 'SkipTargets', name = 'Move Around Targets', value = false})
-    self.Orbwalker.General:MenuElement({id = 'MovementDelay', name = 'Movement Delay', value = 250, min = 150, max = 500, step = 50})
     self.Orbwalker.General:MenuElement({id = 'HoldRadius', name = 'Hold Radius', value = 0, min = 0, max = 250, step = 10})
     self.Orbwalker.General:MenuElement({id = 'ExtraWindUpTime', name = 'Extra WindUpTime', value = 0, min = -25, max = 75, step = 5})
     self.Orbwalker:MenuElement({id = 'RandomHumanizer', name = 'Random Humanizer', type = MENU})
-    self.Orbwalker.RandomHumanizer:MenuElement({id = 'Enabled', name = 'Enabled', value = true})
-    self.Orbwalker.RandomHumanizer:MenuElement({id = 'Min', name = 'Min', value = 160, min = 150, max = 300, step = 10})
-    self.Orbwalker.RandomHumanizer:MenuElement({id = 'Max', name = 'Max', value = 240, min = 150, max = 400, step = 10})
+    self.Orbwalker.RandomHumanizer:MenuElement({id = 'Min', name = 'Min', value = 100, min = 50, max = 300, step = 10})
+    self.Orbwalker.RandomHumanizer:MenuElement({id = 'Max', name = 'Max', value = 150, min = 150, max = 400, step = 10})
     self.Orbwalker:MenuElement({id = 'Farming', name = 'Farming Settings', type = MENU})
     self.Orbwalker.Farming:MenuElement({id = 'LastHitPriority', name = 'Priorize Last Hit over Harass', value = true})
     self.Orbwalker.Farming:MenuElement({id = 'PushPriority', name = 'Priorize Push over Freeze', value = true})
@@ -4215,12 +4213,9 @@ function Cursor:IsCursorOnTarget(pos)
 end
 
 function Cursor:GetHumanizer()
-    if self.MenuRandomHumanizer.Enabled:Value() then
-        local min = self.MenuRandomHumanizer.Min:Value()
-        local max = self.MenuRandomHumanizer.Max:Value()
-        return max <= min and min or math_random(min, max)
-    end
-    return self.MenuOrbwalker.MovementDelay:Value()
+    local min = self.MenuRandomHumanizer.Min:Value()
+    local max = self.MenuRandomHumanizer.Max:Value()
+    return max <= min and min or math_random(min, max)
 end
 
 function Cursor:SetToCastPos()
