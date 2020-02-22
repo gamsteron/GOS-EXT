@@ -1,6 +1,6 @@
 --https://discord.gg/wXfvEKV
 
-local Version = '1.3'
+local Version = '1.31'
 
 if _G.SDK then return end
 
@@ -1845,7 +1845,7 @@ function Data:IsLaneMinion(unit)
 end
 
 function Data:Stop()
-    return Game.IsChatOpen() or (ExtLibEvade and ExtLibEvade.Evading) or (JustEvade and (not JustEvade.Evading or JustEvade.Evading())) or (not Game.IsOnTop())
+    return Game.IsChatOpen() or (ExtLibEvade and ExtLibEvade.Evading) or (JustEvade and JustEvade.Evading()) or (not Game.IsOnTop())
 end
 
 Spell =
@@ -2745,15 +2745,15 @@ function Object:IsValid(obj, type, visible, immortal, jaxE)
     if obj == nil then
         return false
     end
-    if not obj.visible then
-        return false
-    end
     local objType
     objType = obj.type
     if objType == nil or (type and type ~= objType) then
         return false
     end
     if (objType == Obj_AI_Hero or objType == Obj_AI_Minion or objType == Obj_AI_Turret) and not obj.valid then
+        return false
+    end
+    if not obj.visible then
         return false
     end
     if obj.dead or not obj.isTargetable then
@@ -4641,7 +4641,7 @@ function Orbwalker:CanMove(unit)
         if not self.CanMoveC() then
             return false
         end
-        if (JustEvade and (not JustEvade.Evading or JustEvade.Evading())) or (ExtLibEvade and ExtLibEvade.Evading) then
+        if (JustEvade and JustEvade.Evading()) or (ExtLibEvade and ExtLibEvade.Evading) then
             return false
         end
         if myHero.charName == 'Kalista' then
@@ -4662,7 +4662,7 @@ function Orbwalker:CanAttack(unit)
         if not self.CanAttackC() then
             return false
         end
-        if (JustEvade and (not JustEvade.Evading or JustEvade.Evading())) or (ExtLibEvade and ExtLibEvade.Evading) then
+        if (JustEvade and JustEvade.Evading()) or (ExtLibEvade and ExtLibEvade.Evading) then
             return false
         end
         if not Data:HeroCanAttack() then
