@@ -26,6 +26,21 @@ local TEAM_JUNGLE = 300
 local TEAM_ALLY = myHero.team
 local TEAM_ENEMY = 300 - myHero.team
 
+local math_huge = math.huge
+local math_pi = math.pi
+local math_sqrt = assert(math.sqrt)
+local math_abs = assert(math.abs)
+local math_ceil = assert(math.ceil)
+local math_min = assert(math.min)
+local math_max = assert(math.max)
+local math_pow = assert(math.pow)
+local math_atan = assert(math.atan)
+local math_acos = assert(math.acos)
+local math_random = assert(math.random)
+local table_sort = assert(table.sort)
+local table_remove = assert(table.remove)
+local table_insert = assert(table.insert)
+
 -- REQUIRES
 do
     if _G.GamsteronAIOLoaded == true then return end
@@ -58,6 +73,314 @@ do
     end
 end
 
+-- PREDICTION
+local __Math, __Path = {}, {}
+
+function __Math:Get2D(p)
+    p = p.pos == nil and p or p.pos
+    return {x = p.x, z = p.z == nil and p.y or p.z}
+end
+
+function __Math:Get3D(p)
+    local result = Vector(p.x, 0, p.z)
+    return result
+end
+
+function __Math:GetDistance(p1, p2)
+    local dx = p2.x - p1.x
+    local dz = p2.z - p1.z
+    return math_sqrt(dx * dx + dz * dz)
+end
+
+function __Math:IsInRange(p1, p2, range)
+    local dx = p1.x - p2.x
+    local dz = p1.z - p2.z
+    if (dx * dx + dz * dz <= range * range) then
+        return true
+    end
+    return false
+end
+
+function __Math:VectorsEqual(p1, p2, num)
+    num = num or 5
+    if (self:GetDistance(p1, p2) < num) then
+        return true
+    end
+    return false
+end
+
+function __Math:Normalized(p1, p2)
+    local dx = p1.x - p2.x
+    local dz = p1.z - p2.z
+    local length = math_sqrt(dx * dx + dz * dz)
+    local sol = nil
+    if (length > 0) then
+        local inv = 1.0 / length
+        sol = {x = (dx * inv), z = (dz * inv)}
+    end
+    return sol
+end
+
+function __Math:Extended(vec, dir, range)
+    if (dir == nil) then
+        return vec
+    end
+    return {x = vec.x + dir.x * range, z = vec.z + dir.z * range}
+end
+
+function __Math:Perpendicular(dir)
+    if (dir == nil) then
+        return nil
+    end
+    return {x = -dir.z, z = dir.x}
+end
+
+function __Math:Intersection(s1, e1, s2, e2)
+    local IntersectionResult = {Intersects = false, Point = {x = 0, z = 0}}
+    local deltaACz = s1.z - s2.z
+    local deltaDCx = e2.x - s2.x
+    local deltaACx = s1.x - s2.x
+    local deltaDCz = e2.z - s2.z
+    local deltaBAx = e1.x - s1.x
+    local deltaBAz = e1.z - s1.z
+    local denominator = deltaBAx * deltaDCz - deltaBAz * deltaDCx
+    local numerator = deltaACz * deltaDCx - deltaACx * deltaDCz
+    if (denominator == 0) then
+        if (numerator == 0) then
+            if s1.x >= s2.x and s1.x <= e2.x then
+                return {Intersects = true, Point = s1}
+            end
+            if s2.x >= s1.x and s2.x <= e1.x then
+                return {Intersects = true, Point = s2}
+            end
+            return IntersectionResult
+        end
+        return IntersectionResult
+    end
+    local r = numerator / denominator
+    if (r < 0 or r > 1) then
+        return IntersectionResult
+    end
+    local s = (deltaACz * deltaBAx - deltaACx * deltaBAz) / denominator
+    if (s < 0 or s > 1) then
+        return IntersectionResult
+    end
+    local point = {x = s1.x + r * deltaBAx, z = s1.z + r * deltaBAz}
+    return {Intersects = true, Point = point}
+end
+
+function __Math:ClosestPointOnLineSegment(p, p1, p2)
+    local px = p.x
+    local pz = p.z
+    local ax = p1.x
+    local az = p1.z
+    local bx = p2.x
+    local bz = p2.z
+    local bxax = bx - ax
+    local bzaz = bz - az
+    local t = ((px - ax) * bxax + (pz - az) * bzaz) / (bxax * bxax + bzaz * bzaz)
+    if (t < 0) then
+        return p1, false
+    end
+    if (t > 1) then
+        return p2, false
+    end
+    return {x = ax + t * bxax, z = az + t * bzaz}, true
+end
+
+function __Math:Intercept(src, spos, epos, sspeed, tspeed)
+    local dx = epos.x - spos.x
+    local dz = epos.z - spos.z
+    local magnitude = math_sqrt(dx * dx + dz * dz)
+    local tx = spos.x - src.x
+    local tz = spos.z - src.z
+    local tvx = (dx / magnitude) * tspeed
+    local tvz = (dz / magnitude) * tspeed
+    
+    local a = tvx * tvx + tvz * tvz - sspeed * sspeed
+    local b = 2 * (tvx * tx + tvz * tz)
+    local c = tx * tx + tz * tz
+    
+    local ts
+    if (math_abs(a) < 1e-6) then
+        if (math_abs(b) < 1e-6) then
+            if (math_abs(c) < 1e-6) then
+                ts = {0, 0}
+            end
+        else
+            ts = {-c / b, -c / b}
+        end
+    else
+        local disc = b * b - 4 * a * c
+        if (disc >= 0) then
+            disc = math_sqrt(disc)
+            local a = 2 * a
+            ts = {(-b - disc) / a, (-b + disc) / a}
+        end
+    end
+
+    local sol
+    if (ts) then
+        local t0 = ts[1]
+        local t1 = ts[2]
+        local t = math_min(t0, t1)
+        if (t < 0) then
+            t = math_max(t0, t1)
+        end
+        if (t > 0) then
+            sol = t
+        end
+    end
+    
+    return sol
+end
+
+function __Math:Polar(p1)
+    local x = p1.x
+    local z = p1.z
+    if (x == 0) then
+        if (z > 0) then
+            return 90
+        end
+        if (z < 0) then
+            return 270
+        end
+        return 0
+    end
+    local theta = math_atan(z / x) * (180.0 / math_pi) --RadianToDegree
+    if (x < 0) then
+        theta = theta + 180
+    end
+    if (theta < 0) then
+        theta = theta + 360
+    end
+    return theta
+end
+
+function __Math:AngleBetween(p1, p2)
+    if (p1 == nil or p2 == nil) then
+        return nil
+    end
+    local theta = self:Polar(p1) - self:Polar(p2)
+    if (theta < 0) then
+        theta = theta + 360
+    end
+    if (theta > 180) then
+        theta = 360 - theta
+    end
+    return theta
+end
+
+function __Math:FindAngle(p0, p1, p2)
+    local b = math_pow(p1.x - p0.x, 2) + math_pow(p1.z - p0.z, 2)
+    local a = math_pow(p1.x - p2.x, 2) + math_pow(p1.z - p2.z, 2)
+    local c = math_pow(p2.x - p0.x, 2) + math_pow(p2.z - p0.z, 2)
+    local angle = math_acos((a + b - c) / math_sqrt(4 * a * b)) * (180 / math_pi)
+    if (angle > 90) then
+        angle = 180 - angle
+    end
+    return angle
+end
+
+--
+
+function __Path:GetLenght(path)
+    local result = 0
+    for i = 1, #path - 1 do
+        result = result + __Math:GetDistance(path[i], path[i + 1])
+    end
+    return result
+end
+
+function __Path:CutPath(path, distance)
+    local result = {}
+
+    if distance <= 0 then
+        return path
+    end
+
+    for i = 1, #path - 1 do
+        local a, b = path[i], path[i+1]
+        local dist = __Math:GetDistance(a, b)
+        if dist > distance then
+            table_insert(result, __Math:Extended(a, __Math:Normalized(b, a), distance))
+            for j = i + 1, #path do
+                table_insert(result, path[j])
+            end
+            break
+        end
+        distance = distance - dist
+    end
+
+    return #result > 0 and result or {path[#path]}
+end
+
+function __Path:ReversePath(path)
+    local result = {}
+
+    for i = #path, 1, -1 do
+        table_insert(result, path[i])
+    end
+
+    return result
+end
+
+function __Path:GetPath(unit)
+    local result = {}
+    local path = unit.pathing
+    table_insert(result, __Math:Get2D(unit.pos))
+    if path.isDashing then
+        table_insert(result, __Math:Get2D(path.endPos))
+    else
+        for i = path.pathIndex, path.pathCount do
+            table_insert(result, __Math:Get2D(unit:GetPath(i)))
+        end
+    end
+    return result
+end
+
+function __Path:GetPredictedPath(source, speed, movespeed, path)
+    local result = {}
+    local tT = 0
+    for i = 1, #path - 1 do
+        local a = path[i];table_insert(result, a)
+        local b = path[i + 1]
+        local tB = __Math:GetDistance(a, b) / movespeed
+        local direction = __Math:Normalized(b, a)
+        a = __Math:Extended(a, direction, -(movespeed * tT))
+        local t = __Math:Intercept(source, a, b, speed, movespeed)
+        if (t and t >= tT and t <= tT + tB) then
+            table_insert(result, __Math:Extended(a, direction, t * movespeed))
+            return result, t
+        end
+        tT = tT + tB
+    end
+    
+    return nil, -1
+end
+
+function __Path:GetPrediction(target, source, delay, speed)
+    local ms = target.ms
+
+    source = source.pos or source
+
+    if not target.pathing.hasMovePath then
+        return target.pos
+    end
+
+    local path = self:CutPath(self:GetPath(target), ms * delay)
+    if speed == math_huge then
+        return __Math:Get3D(path[1])
+    end
+
+    local path2, time = self:GetPredictedPath(source, speed, ms, path)
+    if path2 then
+        return __Math:Get3D(path2[#path2])
+    end
+
+    return __Math:Get3D(path[#path])
+end
+
 AIO =
 {
 }
@@ -67,12 +390,12 @@ end
 
 function AIO:CheckWall
     (from, to, distance)
-    
+
     local pos1 = to + (to - from):Normalized() * 50
     local pos2 = pos1 + (to - from):Normalized() * (distance - 50)
-    local point1 = Point(pos1.x, pos1.z)
-    local point2 = Point(pos2.x, pos2.z)
-    if MapPosition:intersectsWall(LineSegment(point1, point2)) or (MapPosition:inWall(point1) and MapPosition:inWall(point2)) then
+    local point1 = {x=pos1.x, z=pos1.z}
+    local point2 = {x=pos2.x, z=pos2.z}
+    if MapPosition:intersectsWall(point1, point2) or (MapPosition:inWall(point1) and MapPosition:inWall(point2)) then
         return true
     end
     return false
@@ -1358,7 +1681,7 @@ function Vayne:Tick()
         end
     end
     -- r
-    
+
     -- e
     if not result and SDKSpell:IsReady(_E, {q = 0.75, w = 0, e = 0.75, r = 0}) then
         
@@ -1400,14 +1723,15 @@ function Vayne:Tick()
             end
         end
         -- e antiDash
-        
+
         -- e stun
         if not result and ((SDKOrbwalker.Modes[ORBWALKER_MODE_COMBO] and Menu.eset.combo:Value()) or (SDKOrbwalker.Modes[ORBWALKER_MODE_HARASS] and Menu.eset.harass:Value())) then
             local eRange = self.EData.Range + myHero.boundingRadius
             for i = 1, Game.HeroCount() do
                 local hero = Game.Hero(i)
                 if AIO:IsValidHero(hero, eRange + hero.boundingRadius, true) and hero.team == TEAM_ENEMY then
-                    if Menu.eset.useonstun[hero.charName] and Menu.eset.useonstun[hero.charName]:Value() and AIO:CheckWall(myHero.pos, hero:GetPrediction(self.EData.Delay + 0.06 + LATENCY, self.EData.Speed), 475) then
+                    if Menu.eset.useonstun[hero.charName] and Menu.eset.useonstun[hero.charName]:Value() and AIO:CheckWall(myHero.pos, __Path:GetPrediction(hero, myHero, self.EData.Delay + _G.LATENCY, self.EData.Speed), 475) and AIO:CheckWall(myHero.pos, hero.pos, 475) then
+
                         result = AIO:Cast(HK_E, hero)
                         break
                     end
