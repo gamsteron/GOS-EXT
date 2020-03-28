@@ -3368,7 +3368,11 @@ function Health:Init()
     self.EnemyMinionsInAttackRange = {}
     self.JungleMinionsInAttackRange = {}
     self.EnemyStructuresInAttackRange = {}
-    
+
+    self.CachedWards = {}
+    self.CachedMinions = {}
+    self.CachedTimer = 0
+
     self.TargetsHealth = {}
     self.AttackersDamage = {}
     
@@ -3448,10 +3452,32 @@ function Health:OnTick()
     
     -- SET OBJECTS
     attackRange = myHero.range + myHero.boundingRadius
-    
-    for i = 1, Game.MinionCount() do
-        local obj = Game.Minion(i)
-        if Object:IsValid(obj, Obj_AI_Minion, true) and Math:IsInRange(myHero, obj, 2000) then
+
+    if Game.Timer() > self.CachedTimer + 1 then
+        for i = 1, #self.CachedMinions do
+            table_remove(self.CachedMinions, i)
+        end
+        for i = 1, #self.CachedWards do
+            table_remove(self.CachedWards, i)
+        end
+        for i = 1, Game.MinionCount() do
+            local obj = Game.Minion(i)
+            if obj and obj.valid and not obj.dead and Math:IsInRange(myHero, obj, 2000) then
+                table_insert(self.CachedMinions, obj)
+            end
+        end
+        for i = 1, Game.WardCount() do
+            local obj = Game.Ward(i)
+            if obj and not obj.dead and obj.isEnemy and Math:IsInRange(myHero, obj, 2000) then
+                table_insert(self.CachedWards, obj)
+            end
+        end
+        self.CachedTimer = Game.Timer()
+    end
+
+    for i = 1, #self.CachedMinions do
+        local obj = self.CachedMinions[i]
+        if Object:IsValid(obj, Obj_AI_Minion, true) then
             local handle = obj.handle
             self.Handles[handle] = obj
             local team = obj.team
@@ -3500,8 +3526,8 @@ function Health:OnTick()
         end
     end
     
-    for i = 1, Game.WardCount() do
-        local obj = Game.Ward(i)
+    for i = 1, #self.CachedWards do
+        local obj = self.CachedWards[i]
         if obj and obj.team == Data.EnemyTeam and obj.visible and obj.alive and Math:IsInRange(myHero, obj, attackRange + 35) then
             table_insert(self.EnemyWardsInAttackRange, obj)
         end
@@ -4737,6 +4763,10 @@ function Orbwalker:MeleeLogic()
     while (Cursor:IsCursorOnTarget(position)) do
         i = i + 50
         position = hepos + direction * i
+        if i > 5000 then
+            print('vayne anti melee error')
+            break
+        end
     end
     
     return process, position
@@ -4848,6 +4878,10 @@ function Orbwalker:Move()
                     i = i + 50
                     mPos = mPos + dir * i
                     pos = mPos
+                    if i > 5000 then
+                        print('orbwalker skiptargets error')
+                        break
+                    end
                 end
             end
             
