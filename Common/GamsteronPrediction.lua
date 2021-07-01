@@ -1,4 +1,4 @@
-local SCRIPT_VERSION = '0.157'
+local SCRIPT_VERSION = '0.158'
 --[=========================================================[
  
  
@@ -239,16 +239,59 @@ local function Bool(x)
     return x
 end
 
---[=====[
-Buff Types:
+--[[
+enum class BuffType {
+	Internal = 0,
+	Aura = 1,
+	CombatEnchancer = 2,
+	CombatDehancer = 3,
+	SpellShield = 4,
+	Stun = 5,
+	Invisibility = 6,
+	Silence = 7,
+	Taunt = 8,
+	Berserk = 9,
+	Polymorph = 10,
+	Slow = 11,
+	Snare = 12,
+	Damage = 13,
+	Heal = 14,
+	Haste = 15,
+	SpellImmunity = 16,
+	PhysicalImmunity = 17,
+	Invulnerability = 18,
+	AttackSpeedSlow = 19,
+	NearSight = 20,
+	Fear = 22,
+	Charm = 23,
+	Poison = 24,
+	Suppression = 25,
+	Blind = 26,
+	Counter = 27,
+	Currency = 21,
+	Shred = 28,
+	Flee = 29,
+	Knockup = 30,
+	Knockback = 31,
+	Disarm = 32,
+	Grounded = 33,
+	Drowsy = 34,
+	Asleep = 35,
+	Obscured = 36,
+	ClickProofToEnemies = 37,
+	Unkillable = 38
+};
+
+OLD Buff Types:
     INTERNAL = 0, AURA = 1, ENHANCER = 2, DEHANCER = 3, SPELLSHIELD = 4, STUN = 5, INVIS = 6, SILENCE = 7,
-    TAUNT = 8, POLYMORPH = 9, SLOW = 10, SNARE = 11, DMG = 12, HEAL = 13, HASTE = 14, SPELLIMM = 15
+    TAUNT = 8, POLYMORPH = 9, SLOW = 10, SNARE = 12, DMG = 12, HEAL = 13, HASTE = 14, SPELLIMM = 15
     PHYSIMM = 16, INVULNERABLE = 17, SLEEP = 18, NEARSIGHT = 19, FRENZY = 20, FEAR = 21, CHARM = 22, POISON = 23
     SUPRESS = 24, BLIND = 25, COUNTER = 26, SHRED = 27, FLEE = 28, KNOCKUP = 29, KNOCKBACK = 30, DISARM = 31
---]=====]
+--]]
 
 -- IMMOBILE BUFF
-local IMMOBILE_TYPES = {[5] = true, [8] = true, [11] = true, [21] = true, [22] = true, [24] = true, [29] = true}--[18] = true broken shiit
+local IMMOBILE_TYPES = {[5] = true, [8] = true, [12] = true, [22] = true, [23] = true, [25] = true, [30] = true, [35] = true,}--asleep should work for zoe we will see
+
 function GetImmobileDuration(unit)
     local SpellStartTime = 0
     local AttackStartTime = 0
